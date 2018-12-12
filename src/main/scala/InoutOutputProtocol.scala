@@ -1,6 +1,8 @@
-import java.io.{InputStream, OutputStream}
+import java.io.{DataInputStream, InputStream, OutputStream}
 
 import cats.effect.{Resource, Sync}
+import cats.syntax.functor._
+import cats.syntax.flatMap._
 
 sealed trait InoutOutputProtocol[EntityType, InputResourceType, OutputResourceType] {
   def output[F[_] : Sync](entity: EntityType, stream: Resource[F, OutputResourceType])
@@ -22,28 +24,26 @@ object InputOutputProtocolInstances {
         }
 
       private def transmitFrom[F[_] : Sync](source: InputStream)
-                                           (implicit serializationProtocol: SerializationProtocol[A]): F[A] = {
-        import SerializationProtocolInstances._
-        val sizeDeserializer: SerializationProtocol[Long] = implicitly[SerializationProtocol[Long]]
-        val sizeBuffer = new Array[Byte](8)
+                                           (implicit serializationProtocol: SerializationProtocol[A]): F[A] =
         for {
-          _ <- source.read(sizeBuffer, 0, 8)
-          size <- sizeDeserializer.deserialize(sizeBuffer)
-          entityBuffer = new Array[Byte](size)
-          _ <- source.read(entityBuffer, 0, size)
-          entity: A <- serializationProtocol.deserialize(entityBuffer)
+          dataStream <- Sync[F].delay(new DataInputStream(source))
+          size <- Sync[F].delay(dataStream.readInt())
+          entityBuffer <- Sync[F].delay(new Array[Byte](size))
+          _ <- Sync[F].delay(dataStream.read(entityBuffer, 0, size))
+          entity <- serializationProtocol.deserialize(entityBuffer)
         } yield entity
-      }
 
-      override def output[F[_] : Sync](entity: A, stream: Resource[F, OutputStream])
-                                      (implicit serializationProtocol: SerializationProtocol[A]): F[Long] = for {
-        payload <- serializationProtocol.serialize(entity)
-        total <- stream.use(outputStream => transmitTo(payload, outputStream))
-      } yield total
+      override def output[F[_] : Sync](entity: A, resource: Resource[F, OutputStream])
+                                      (implicit serializationProtocol: SerializationProtocol[A]): F[Long] =
+        for {
+          payload <- serializationProtocol.serialize(entity)
+          total <- resource.use(outputStream => transmitTo(payload, outputStream))
+        } yield total
 
-      override def input[F[_] : Sync](stream: Resource[F, InputStream])
-                                     (implicit serializationProtocol: SerializationProtocol[A]): F[A] = for {
-        entity: A <- stream.use(inputStream => transmitFrom(inputStream))
-      } yield entity
+      override def input[F[_] : Sync](resource: Resource[F, InputStream])
+                                     (implicit serializationProtocol: SerializationProtocol[A]): F[A] =
+        for {
+          entity <- resource.use(inputStream => transmitFrom(inputStream))
+        } yield entity
     }
 }
