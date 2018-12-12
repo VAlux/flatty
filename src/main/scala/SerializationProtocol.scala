@@ -16,14 +16,14 @@ object SerializationProtocolInstances {
       else Sync[F].delay(Array[Byte](0))
 
     override def deserialize[F[_] : Sync](array: Array[Byte]): F[Boolean] =
-      Sync[F].delay(array(0) == 1)
+      Sync[F].delay(array.headOption.getOrElse(0) == 1)
   }
   implicit val serializeByte: SerializationProtocol[Byte] = new SerializationProtocol[Byte] {
     override def serialize[F[_] : Sync](entity: Byte): F[Array[Byte]] =
       Sync[F].delay(Array(entity))
 
     override def deserialize[F[_] : Sync](array: Array[Byte]): F[Byte] =
-      Sync[F].delay(array(0))
+      Sync[F].delay(array.headOption.getOrElse(0))
   }
   implicit val serializeShort: SerializationProtocol[Short] = new SerializationProtocol[Short] {
     private val buffer: ByteBuffer = ByteBuffer.allocate(2)
