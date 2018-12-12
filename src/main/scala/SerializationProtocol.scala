@@ -120,19 +120,6 @@ object SerializationProtocolInstances {
     override def deserialize[F[_] : Sync](array: Array[Byte]): F[String] =
       Sync[F].delay(new String(array))
   }
-  implicit val serializeUser: SerializationProtocol[User] = new SerializationProtocol[User] {
-
-    import SerializationProtocolSyntax._
-
-    override def serialize[F[_] : Sync](user: User): F[Array[Byte]] =
-      user.id ->> user.name
-
-    override def deserialize[F[_] : Sync](array: Array[Byte]): F[User] = for {
-      id <- decode[Long, F](array)
-      name <- decode[String, F](array)
-      email <- decode[String, F](array)
-    } yield User(id, name, email)
-  }
   implicit val byteArraySerializer: SerializationProtocol[Array[Byte]] = new SerializationProtocol[Array[Byte]] {
     override def serialize[F[_] : Sync](entity: Array[Byte]): F[Array[Byte]] =
       Sync[F].delay(entity)
@@ -159,27 +146,7 @@ object SerializationProtocolSyntax {
 
   def decode[A: SerializationProtocol, F[_] : Sync](array: Array[Byte]): F[A] =
     implicitly[SerializationProtocol[A]].deserialize(array)
+
+  def encode[A: SerializationProtocol, F[_] : Sync](entity: A): F[Array[Byte]] =
+    implicitly[SerializationProtocol[A]].serialize(entity)
 }
-
-sealed trait OutputProtocol[EntityType, ResourceType] {
-  def output[F[_] : Sync](entity: EntityType, stream: Resource[F, ResourceType])
-                         (implicit serializationProtocol: SerializationProtocol[EntityType]): F[Long]
-}
-
-object OutputProtocolInstances {
-  implicit def outputStreamProtocol[A]: OutputProtocol[A, OutputStream] = new OutputProtocol[A, OutputStream] {
-    def transmit[F[_] : Sync](payload: Array[Byte], destination: OutputStream): F[Long] =
-      Sync[F].delay {
-        destination.write(payload.length)
-        destination.write(payload)
-        payload.length
-      }
-
-    override def output[F[_] : Sync](entity: A, stream: Resource[F, OutputStream])
-                                    (implicit serializationProtocol: SerializationProtocol[A]): F[Long] = for {
-      payload <- serializationProtocol.serialize(entity)
-      total <- stream.use(outputStream => transmit(payload, outputStream))
-    } yield total
-  }
-}
-
