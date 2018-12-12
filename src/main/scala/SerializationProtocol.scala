@@ -1,7 +1,6 @@
-import java.io._
 import java.nio.{ByteBuffer, ByteOrder}
 
-import cats.effect.{Resource, Sync}
+import cats.effect.Sync
 import cats.implicits._
 
 sealed trait SerializationProtocol[EntityType] {
@@ -9,9 +8,6 @@ sealed trait SerializationProtocol[EntityType] {
 
   def deserialize[F[_] : Sync](array: Array[Byte]): F[EntityType]
 }
-
-//Just for testing...
-final case class User(id: Long, name: String, email: String)
 
 object SerializationProtocolInstances {
   implicit val serializeBoolean: SerializationProtocol[Boolean] = new SerializationProtocol[Boolean] {
