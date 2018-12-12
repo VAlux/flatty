@@ -7,7 +7,7 @@ import cats.implicits._
 sealed trait SerializationProtocol[EntityType] {
   def serialize[F[_] : Sync](entity: EntityType): F[Array[Byte]]
 
-  def deserialize(array: Array[Byte]): EntityType
+  def deserialize[F[_] : Sync](array: Array[Byte]): F[EntityType]
 }
 
 //Just for testing...
@@ -19,13 +19,15 @@ object SerializationProtocolInstances {
       if (entity) Sync[F].delay(Array[Byte](1))
       else Sync[F].delay(Array[Byte](0))
 
-    override def deserialize(array: Array[Byte]): Boolean = array(0) == 1
+    override def deserialize[F[_] : Sync](array: Array[Byte]): F[Boolean] =
+      Sync[F].delay(array(0) == 1)
   }
   implicit val serializeByte: SerializationProtocol[Byte] = new SerializationProtocol[Byte] {
     override def serialize[F[_] : Sync](entity: Byte): F[Array[Byte]] =
       Sync[F].delay(Array(entity))
 
-    override def deserialize(array: Array[Byte]): Byte = array(0)
+    override def deserialize[F[_] : Sync](array: Array[Byte]): F[Byte] =
+      Sync[F].delay(array(0))
   }
   implicit val serializeShort: SerializationProtocol[Short] = new SerializationProtocol[Short] {
     private[this] val buffer: ByteBuffer = ByteBuffer.allocate(2).order(ByteOrder.LITTLE_ENDIAN)
@@ -33,18 +35,20 @@ object SerializationProtocolInstances {
     override def serialize[F[_] : Sync](entity: Short): F[Array[Byte]] =
       Sync[F].delay(Array(entity.toByte))
 
-    override def deserialize(array: Array[Byte]): Short = {
+    override def deserialize[F[_] : Sync](array: Array[Byte]): F[Short] = {
       def combineTo(first: Byte, second: Byte): Short =
         buffer
           .put(first)
           .put(second)
           .getShort()
 
-      array.grouped(2).map {
-        case Array(a) => combineTo(a, 0)
-        case Array(a, b) => combineTo(a, b)
-        case _ => 0.toShort
-      }.next()
+      Sync[F].delay {
+        array.grouped(2).map {
+          case Array(a) => combineTo(a, 0)
+          case Array(a, b) => combineTo(a, b)
+          case _ => 0.toShort
+        }.next()
+      }
     }
   }
   implicit val serializeInt: SerializationProtocol[Int] = new SerializationProtocol[Int] {
@@ -53,7 +57,7 @@ object SerializationProtocolInstances {
     override def serialize[F[_] : Sync](entity: Int): F[Array[Byte]] =
       Sync[F].delay(Array(entity.toByte))
 
-    override def deserialize(array: Array[Byte]): Int = {
+    override def deserialize[F[_] : Sync](array: Array[Byte]): F[Int] = {
       def combineTo(first: Byte, second: Byte, third: Byte, fourth: Byte): Int =
         buffer
           .put(first)
@@ -62,13 +66,15 @@ object SerializationProtocolInstances {
           .put(fourth)
           .getInt()
 
-      array.grouped(4).map {
-        case Array(a) => combineTo(a, 0, 0, 0)
-        case Array(a, b) => combineTo(a, b, 0, 0)
-        case Array(a, b, c) => combineTo(a, b, c, 0)
-        case Array(a, b, c, d) => combineTo(a, b, c, d)
-        case _ => 0
-      }.next()
+      Sync[F].delay {
+        array.grouped(4).map {
+          case Array(a) => combineTo(a, 0, 0, 0)
+          case Array(a, b) => combineTo(a, b, 0, 0)
+          case Array(a, b, c) => combineTo(a, b, c, 0)
+          case Array(a, b, c, d) => combineTo(a, b, c, d)
+          case _ => 0
+        }.next()
+      }
     }
   }
   implicit val serializeLong: SerializationProtocol[Long] = new SerializationProtocol[Long] {
@@ -77,7 +83,7 @@ object SerializationProtocolInstances {
     override def serialize[F[_] : Sync](entity: Long): F[Array[Byte]] =
       Sync[F].delay(Array(entity.toByte))
 
-    override def deserialize(array: Array[Byte]): Long = {
+    override def deserialize[F[_] : Sync](array: Array[Byte]): F[Long] = {
       def combineTo(first: Byte, second: Byte, third: Byte, fourth: Byte,
                     fifth: Byte, sixth: Byte, seventh: Byte, eighth: Byte): Long =
         buffer
@@ -91,24 +97,28 @@ object SerializationProtocolInstances {
           .put(eighth)
           .getLong()
 
-      array.grouped(8).map {
-        case Array(a) => combineTo(a, 0, 0, 0, 0, 0, 0, 0)
-        case Array(a, b) => combineTo(a, b, 0, 0, 0, 0, 0, 0)
-        case Array(a, b, c) => combineTo(a, b, c, 0, 0, 0, 0, 0)
-        case Array(a, b, c, d) => combineTo(a, b, c, d, 0, 0, 0, 0)
-        case Array(a, b, c, d, e) => combineTo(a, b, c, d, e, 0, 0, 0)
-        case Array(a, b, c, d, e, f) => combineTo(a, b, c, d, e, f, 0, 0)
-        case Array(a, b, c, d, e, f, g) => combineTo(a, b, c, d, e, f, g, 0)
-        case Array(a, b, c, d, e, f, g, h) => combineTo(a, b, c, d, e, f, g, h)
-        case _ => 0.toLong
-      }.next()
+      Sync[F].delay {
+        array.grouped(8).map {
+          case Array(a) => combineTo(a, 0, 0, 0, 0, 0, 0, 0)
+          case Array(a, b) => combineTo(a, b, 0, 0, 0, 0, 0, 0)
+          case Array(a, b, c) => combineTo(a, b, c, 0, 0, 0, 0, 0)
+          case Array(a, b, c, d) => combineTo(a, b, c, d, 0, 0, 0, 0)
+          case Array(a, b, c, d, e) => combineTo(a, b, c, d, e, 0, 0, 0)
+          case Array(a, b, c, d, e, f) => combineTo(a, b, c, d, e, f, 0, 0)
+          case Array(a, b, c, d, e, f, g) => combineTo(a, b, c, d, e, f, g, 0)
+          case Array(a, b, c, d, e, f, g, h) => combineTo(a, b, c, d, e, f, g, h)
+          case _ => 0.toLong
+        }.next()
+      }
     }
   }
 
   implicit val serializeString: SerializationProtocol[String] = new SerializationProtocol[String] {
-    override def serialize[F[_] : Sync](entity: String) = Sync[F].delay(entity.getBytes)
+    override def serialize[F[_] : Sync](entity: String): F[Array[Byte]] =
+      Sync[F].delay(entity.getBytes)
 
-    override def deserialize(array: Array[Byte]): String = new String(array)
+    override def deserialize[F[_] : Sync](array: Array[Byte]): F[String] =
+      Sync[F].delay(new String(array))
   }
   implicit val serializeUser: SerializationProtocol[User] = new SerializationProtocol[User] {
 
@@ -117,19 +127,17 @@ object SerializationProtocolInstances {
     override def serialize[F[_] : Sync](user: User): F[Array[Byte]] =
       user.id ->> user.name
 
-    override def deserialize(array: Array[Byte]): User = {
-      val id = decode[Long](array)
-      val name = decode[String](array)
-      val email = decode[String](array)
-
-      User(id, name, email)
-    }
+    override def deserialize[F[_] : Sync](array: Array[Byte]): F[User] = for {
+      id <- decode[Long, F](array)
+      name <- decode[String, F](array)
+      email <- decode[String, F](array)
+    } yield User(id, name, email)
   }
   implicit val byteArraySerializer: SerializationProtocol[Array[Byte]] = new SerializationProtocol[Array[Byte]] {
     override def serialize[F[_] : Sync](entity: Array[Byte]): F[Array[Byte]] =
       Sync[F].delay(entity)
 
-    override def deserialize(array: Array[Byte]): Array[Byte] = array
+    override def deserialize[F[_] : Sync](array: Array[Byte]): F[Array[Byte]] = Sync[F].delay(array)
   }
 }
 
@@ -149,7 +157,7 @@ object SerializationProtocolSyntax {
       serializer.serialize(entity) >> implicitly[SerializationProtocol[B]].serialize(entity2)
   }
 
-  def decode[A: SerializationProtocol](array: Array[Byte]): A =
+  def decode[A: SerializationProtocol, F[_] : Sync](array: Array[Byte]): F[A] =
     implicitly[SerializationProtocol[A]].deserialize(array)
 }
 
