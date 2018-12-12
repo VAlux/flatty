@@ -1,4 +1,4 @@
-import java.nio.{ByteBuffer, ByteOrder}
+import java.nio.ByteBuffer
 
 import cats.effect.Sync
 import cats.implicits._
@@ -26,87 +26,44 @@ object SerializationProtocolInstances {
       Sync[F].delay(array(0))
   }
   implicit val serializeShort: SerializationProtocol[Short] = new SerializationProtocol[Short] {
-    private[this] val buffer: ByteBuffer = ByteBuffer.allocate(2).order(ByteOrder.LITTLE_ENDIAN)
+    private val buffer: ByteBuffer = ByteBuffer.allocate(2)
 
     override def serialize[F[_] : Sync](entity: Short): F[Array[Byte]] =
       Sync[F].delay(Array(entity.toByte))
 
-    override def deserialize[F[_] : Sync](array: Array[Byte]): F[Short] = {
-      def combineTo(first: Byte, second: Byte): Short =
-        buffer
-          .put(first)
-          .put(second)
-          .getShort()
-
+    override def deserialize[F[_] : Sync](array: Array[Byte]): F[Short] =
       Sync[F].delay {
-        array.grouped(2).map {
-          case Array(a) => combineTo(a, 0)
-          case Array(a, b) => combineTo(a, b)
-          case _ => 0.toShort
-        }.next()
+        buffer.put(array)
+        buffer.flip()
+        buffer.getShort()
       }
-    }
   }
   implicit val serializeInt: SerializationProtocol[Int] = new SerializationProtocol[Int] {
-    private[this] val buffer: ByteBuffer = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN)
+    private val buffer: ByteBuffer = ByteBuffer.allocate(4)
 
     override def serialize[F[_] : Sync](entity: Int): F[Array[Byte]] =
       Sync[F].delay(Array(entity.toByte))
 
-    override def deserialize[F[_] : Sync](array: Array[Byte]): F[Int] = {
-      def combineTo(first: Byte, second: Byte, third: Byte, fourth: Byte): Int =
-        buffer
-          .put(first)
-          .put(second)
-          .put(third)
-          .put(fourth)
-          .getInt()
-
+    override def deserialize[F[_] : Sync](array: Array[Byte]): F[Int] =
       Sync[F].delay {
-        array.grouped(4).map {
-          case Array(a) => combineTo(a, 0, 0, 0)
-          case Array(a, b) => combineTo(a, b, 0, 0)
-          case Array(a, b, c) => combineTo(a, b, c, 0)
-          case Array(a, b, c, d) => combineTo(a, b, c, d)
-          case _ => 0
-        }.next()
+        buffer.put(array)
+        buffer.flip()
+        buffer.getInt
       }
-    }
   }
+
   implicit val serializeLong: SerializationProtocol[Long] = new SerializationProtocol[Long] {
-    private[this] val buffer: ByteBuffer = ByteBuffer.allocate(16).order(ByteOrder.LITTLE_ENDIAN)
+    private val buffer: ByteBuffer = ByteBuffer.allocate(8)
 
     override def serialize[F[_] : Sync](entity: Long): F[Array[Byte]] =
       Sync[F].delay(Array(entity.toByte))
 
-    override def deserialize[F[_] : Sync](array: Array[Byte]): F[Long] = {
-      def combineTo(first: Byte, second: Byte, third: Byte, fourth: Byte,
-                    fifth: Byte, sixth: Byte, seventh: Byte, eighth: Byte): Long =
-        buffer
-          .put(first)
-          .put(second)
-          .put(third)
-          .put(fourth)
-          .put(fifth)
-          .put(sixth)
-          .put(seventh)
-          .put(eighth)
-          .getLong()
-
+    override def deserialize[F[_] : Sync](array: Array[Byte]): F[Long] =
       Sync[F].delay {
-        array.grouped(8).map {
-          case Array(a) => combineTo(a, 0, 0, 0, 0, 0, 0, 0)
-          case Array(a, b) => combineTo(a, b, 0, 0, 0, 0, 0, 0)
-          case Array(a, b, c) => combineTo(a, b, c, 0, 0, 0, 0, 0)
-          case Array(a, b, c, d) => combineTo(a, b, c, d, 0, 0, 0, 0)
-          case Array(a, b, c, d, e) => combineTo(a, b, c, d, e, 0, 0, 0)
-          case Array(a, b, c, d, e, f) => combineTo(a, b, c, d, e, f, 0, 0)
-          case Array(a, b, c, d, e, f, g) => combineTo(a, b, c, d, e, f, g, 0)
-          case Array(a, b, c, d, e, f, g, h) => combineTo(a, b, c, d, e, f, g, h)
-          case _ => 0.toLong
-        }.next()
+        buffer.put(array)
+        buffer.flip()
+        buffer.getLong()
       }
-    }
   }
 
   implicit val serializeString: SerializationProtocol[String] = new SerializationProtocol[String] {
