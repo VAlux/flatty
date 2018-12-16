@@ -29,7 +29,7 @@ object SerializationProtocolInstances {
     private val buffer: ByteBuffer = ByteBuffer.allocate(2)
 
     override def serialize[F[_] : Sync](entity: Short): F[Array[Byte]] =
-      Sync[F].delay(Array(entity.toByte))
+      Sync[F].delay(buffer.putShort(entity).array())
 
     override def deserialize[F[_] : Sync](array: Array[Byte]): F[Short] =
       Sync[F].delay {
@@ -42,7 +42,7 @@ object SerializationProtocolInstances {
     private val buffer: ByteBuffer = ByteBuffer.allocate(4)
 
     override def serialize[F[_] : Sync](entity: Int): F[Array[Byte]] =
-      Sync[F].delay(Array(entity.toByte))
+      Sync[F].delay(buffer.putInt(entity).array())
 
     override def deserialize[F[_] : Sync](array: Array[Byte]): F[Int] =
       Sync[F].delay {
@@ -56,7 +56,7 @@ object SerializationProtocolInstances {
     private val buffer: ByteBuffer = ByteBuffer.allocate(8)
 
     override def serialize[F[_] : Sync](entity: Long): F[Array[Byte]] =
-      Sync[F].delay(Array(entity.toByte))
+      Sync[F].delay(buffer.putLong(entity).array())
 
     override def deserialize[F[_] : Sync](array: Array[Byte]): F[Long] =
       Sync[F].delay {
