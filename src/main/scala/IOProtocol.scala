@@ -11,36 +11,41 @@ sealed trait IOProtocol[InputResourceType, OutputResourceType] {
   def input[F[_] : Sync, A: SerializationProtocol](resource: Resource[F, InputResourceType]): F[A]
 }
 
+class IOStreamProtocol[I <: InputStream, O <: OutputStream] extends IOProtocol[I, O] {
+
+  import SerializationProtocolInstances._
+
+  private def transmitTo[F[_] : Sync](payload: Array[Byte], destination: OutputStream)
+                                     (implicit serializer: SerializationProtocol[Int]): F[Long] = for {
+    length <- serializer.serialize(payload.length)
+    _ <- Sync[F].delay(destination.write(length))
+    _ <- Sync[F].delay(destination.write(payload))
+  } yield payload.length + Integer.BYTES
+
+  private def transmitFrom[F[_] : Sync](source: InputStream): F[Array[Byte]] = for {
+    dataStream <- Sync[F].delay(new DataInputStream(source))
+    size <- Sync[F].delay(dataStream.readInt())
+    entityBuffer <- Sync[F].delay(new Array[Byte](size))
+    _ <- Sync[F].delay(dataStream.read(entityBuffer, 0, size))
+  } yield entityBuffer
+
+  override def output[F[_] : Sync, A: SerializationProtocol](entity: A, resource: Resource[F, O]): F[Long] = for {
+    payload <- implicitly[SerializationProtocol[A]].serialize(entity)
+    total <- resource.use(outputStream => transmitTo(payload, outputStream))
+  } yield total
+
+  override def input[F[_] : Sync, A: SerializationProtocol](resource: Resource[F, I]): F[A] = for {
+    payload <- resource.use(inputStream => transmitFrom(inputStream))
+    entity <- implicitly[SerializationProtocol[A]].deserialize(payload)
+  } yield entity
+}
+
 object IOProtocolInstances {
-  implicit val ioStreamProtocol: IOProtocol[FileInputStream, FileOutputStream] =
-    new IOProtocol[FileInputStream, FileOutputStream] {
+  implicit val fileIOStreamProtocol: IOProtocol[FileInputStream, FileOutputStream] =
+    new IOStreamProtocol[FileInputStream, FileOutputStream]
 
-      import SerializationProtocolInstances._
-
-      private def transmitTo[F[_] : Sync](payload: Array[Byte], destination: FileOutputStream)
-                                         (implicit serializer: SerializationProtocol[Int]): F[Long] = for {
-        length <- serializer.serialize(payload.length)
-        _ <- Sync[F].delay(destination.write(length))
-        _ <- Sync[F].delay(destination.write(payload))
-      } yield payload.length + 4
-
-      private def transmitFrom[F[_] : Sync](source: FileInputStream): F[Array[Byte]] = for {
-        dataStream <- Sync[F].delay(new DataInputStream(source))
-        size <- Sync[F].delay(dataStream.readInt())
-        entityBuffer <- Sync[F].delay(new Array[Byte](size))
-        _ <- Sync[F].delay(dataStream.read(entityBuffer, 0, size))
-      } yield entityBuffer
-
-      override def output[F[_] : Sync, A: SerializationProtocol](entity: A, resource: Resource[F, FileOutputStream]): F[Long] = for {
-        payload <- implicitly[SerializationProtocol[A]].serialize(entity)
-        total <- resource.use(outputStream => transmitTo(payload, outputStream))
-      } yield total
-
-      override def input[F[_] : Sync, A: SerializationProtocol](resource: Resource[F, FileInputStream]): F[A] = for {
-        payload <- resource.use(inputStream => transmitFrom(inputStream))
-        entity <- implicitly[SerializationProtocol[A]].deserialize(payload)
-      } yield entity
-    }
+  implicit val byteArrayIOStreamProtocol: IOProtocol[ByteArrayInputStream, ByteArrayOutputStream] =
+    new IOStreamProtocol[ByteArrayInputStream, ByteArrayOutputStream]
 }
 
 object Test extends IOApp {
@@ -68,19 +73,19 @@ object Test extends IOApp {
       }
     }
 
-  val serializationProtocol: IOProtocol[FileInputStream, FileOutputStream] =
+  val ioProtocol: IOProtocol[FileInputStream, FileOutputStream] =
     implicitly[IOProtocol[FileInputStream, FileOutputStream]]
 
   def outToFile[A: SerializationProtocol, F[_] : Concurrent](entity: A, file: File): F[Long] =
     for {
       guard <- Semaphore[F](1)
-      amount <- serializationProtocol.output(entity, outputStream(file, guard))
+      amount <- ioProtocol.output(entity, outputStream(file, guard))
     } yield amount
 
   def fromFile[A: SerializationProtocol, F[_] : Concurrent](file: File): F[A] =
     for {
       guard <- Semaphore[F](1)
-      entity <- serializationProtocol.input[F, A](inputStream(file, guard))
+      entity <- ioProtocol.input[F, A](inputStream(file, guard))
     } yield entity
 
   override def run(args: List[String]): IO[ExitCode] = {

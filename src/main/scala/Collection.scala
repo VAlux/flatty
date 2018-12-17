@@ -5,7 +5,7 @@ trait Collection[A] extends Traversable[A] {
 }
 
 //TODO: probably move to another file...
-class HashBasedCollection[A](override val isDynamic: Boolean) extends Collection[A] {
+class HashBasedCollection[A: SerializationProtocol](override val isDynamic: Boolean) extends Collection[A] {
   private[this] var storage: Map[String, A] = Map.empty
 
   def put(key: String, value: A): Unit =
