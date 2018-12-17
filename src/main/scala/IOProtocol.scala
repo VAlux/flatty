@@ -90,19 +90,19 @@ object Test extends IOApp {
 
   override def run(args: List[String]): IO[ExitCode] = {
     readFromFile
-    //    writeToFile
+//        writeToFile
   }
 
   private def writeToFile = for {
-    entity <- IO("TEST")
+    entity <- IO(9)
     file <- IO(new File("test.dat"))
-    written <- outToFile[String, IO](entity, file)
+    written <- outToFile[Int, IO](entity, file)
     _ <- IO(println(s"$written bytes written to test.dat"))
   } yield ExitCode.Success
 
   private def readFromFile = for {
     file <- IO(new File("test.dat"))
-    entity <- fromFile[String, IO](file)
-    _ <- IO(println(s"[$entity] loaded from the test.dat"))
+    entity <- fromFile[Int, IO](file)
+    _ <- IO(println(s"Payload: [$entity] loaded from the test.dat"))
   } yield ExitCode.Success
 }

@@ -26,10 +26,12 @@ object SerializationProtocolInstances {
       Sync[F].delay(array.headOption.getOrElse(0))
   }
   implicit val serializeShort: SerializationProtocol[Short] = new SerializationProtocol[Short] {
-    private val buffer: ByteBuffer = ByteBuffer.allocate(2)
+    private val buffer: ByteBuffer = ByteBuffer.allocate(java.lang.Short.BYTES)
 
-    override def serialize[F[_] : Sync](entity: Short): F[Array[Byte]] =
-      Sync[F].delay(buffer.putShort(entity).array())
+    override def serialize[F[_] : Sync](entity: Short): F[Array[Byte]] = for {
+      cleanBuffer <- Sync[F].delay(buffer.clear())
+      payload <- Sync[F].delay(cleanBuffer.putShort(entity).array())
+    } yield payload
 
     override def deserialize[F[_] : Sync](array: Array[Byte]): F[Short] =
       Sync[F].delay {
@@ -39,10 +41,12 @@ object SerializationProtocolInstances {
       }
   }
   implicit val serializeInt: SerializationProtocol[Int] = new SerializationProtocol[Int] {
-    private val buffer: ByteBuffer = ByteBuffer.allocate(4)
+    private val buffer: ByteBuffer = ByteBuffer.allocate(Integer.BYTES)
 
-    override def serialize[F[_] : Sync](entity: Int): F[Array[Byte]] =
-      Sync[F].delay(buffer.putInt(entity).array())
+    override def serialize[F[_] : Sync](entity: Int): F[Array[Byte]] = for {
+      cleanBuffer <- Sync[F].delay(buffer.clear())
+      payload <- Sync[F].delay(cleanBuffer.putInt(entity).array())
+    } yield payload
 
     override def deserialize[F[_] : Sync](array: Array[Byte]): F[Int] =
       Sync[F].delay {
@@ -53,10 +57,12 @@ object SerializationProtocolInstances {
   }
 
   implicit val serializeLong: SerializationProtocol[Long] = new SerializationProtocol[Long] {
-    private val buffer: ByteBuffer = ByteBuffer.allocate(8)
+    private val buffer: ByteBuffer = ByteBuffer.allocate(java.lang.Long.BYTES)
 
-    override def serialize[F[_] : Sync](entity: Long): F[Array[Byte]] =
-      Sync[F].delay(buffer.putLong(entity).array())
+    override def serialize[F[_] : Sync](entity: Long): F[Array[Byte]] = for {
+      cleanBuffer <- Sync[F].delay(buffer.clear())
+      payload <- Sync[F].delay(cleanBuffer.putLong(entity).array())
+    } yield payload
 
     override def deserialize[F[_] : Sync](array: Array[Byte]): F[Long] =
       Sync[F].delay {
