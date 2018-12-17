@@ -6,9 +6,9 @@ import cats.syntax.flatMap._
 import cats.syntax.functor._
 
 sealed trait IOProtocol[InputResourceType, OutputResourceType] {
-  def output[F[_] : Sync, A: SerializationProtocol](entity: A, resource: Resource[F, OutputResourceType]): F[Long]
-
   def input[F[_] : Sync, A: SerializationProtocol](resource: Resource[F, InputResourceType]): F[A]
+
+  def output[F[_] : Sync, A: SerializationProtocol](entity: A, resource: Resource[F, OutputResourceType]): F[Long]
 }
 
 class IOStreamProtocol[I <: InputStream, O <: OutputStream] extends IOProtocol[I, O] {
@@ -29,15 +29,15 @@ class IOStreamProtocol[I <: InputStream, O <: OutputStream] extends IOProtocol[I
     _ <- Sync[F].delay(dataStream.read(entityBuffer, 0, size))
   } yield entityBuffer
 
-  override def output[F[_] : Sync, A: SerializationProtocol](entity: A, resource: Resource[F, O]): F[Long] = for {
-    payload <- implicitly[SerializationProtocol[A]].serialize(entity)
-    total <- resource.use(outputStream => transmitTo(payload, outputStream))
-  } yield total
-
   override def input[F[_] : Sync, A: SerializationProtocol](resource: Resource[F, I]): F[A] = for {
     payload <- resource.use(inputStream => transmitFrom(inputStream))
     entity <- implicitly[SerializationProtocol[A]].deserialize(payload)
   } yield entity
+
+  override def output[F[_] : Sync, A: SerializationProtocol](entity: A, resource: Resource[F, O]): F[Long] = for {
+    payload <- implicitly[SerializationProtocol[A]].serialize(entity)
+    total <- resource.use(outputStream => transmitTo(payload, outputStream))
+  } yield total
 }
 
 object IOProtocolInstances {
@@ -76,22 +76,17 @@ object Test extends IOApp {
   val ioProtocol: IOProtocol[FileInputStream, FileOutputStream] =
     implicitly[IOProtocol[FileInputStream, FileOutputStream]]
 
-  def outToFile[A: SerializationProtocol, F[_] : Concurrent](entity: A, file: File): F[Long] =
-    for {
-      guard <- Semaphore[F](1)
-      amount <- ioProtocol.output(entity, outputStream(file, guard))
-    } yield amount
-
   def fromFile[A: SerializationProtocol, F[_] : Concurrent](file: File): F[A] =
     for {
       guard <- Semaphore[F](1)
       entity <- ioProtocol.input[F, A](inputStream(file, guard))
     } yield entity
 
-  override def run(args: List[String]): IO[ExitCode] = {
-    readFromFile
-//        writeToFile
-  }
+  def outToFile[A: SerializationProtocol, F[_] : Concurrent](entity: A, file: File): F[Long] =
+    for {
+      guard <- Semaphore[F](1)
+      amount <- ioProtocol.output(entity, outputStream(file, guard))
+    } yield amount
 
   private def writeToFile = for {
     entity <- IO(9)
@@ -105,4 +100,9 @@ object Test extends IOApp {
     entity <- fromFile[Int, IO](file)
     _ <- IO(println(s"Payload: [$entity] loaded from the test.dat"))
   } yield ExitCode.Success
+
+  override def run(args: List[String]): IO[ExitCode] = {
+    readFromFile
+    writeToFile
+  }
 }
