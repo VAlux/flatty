@@ -9,6 +9,10 @@ sealed trait SerializationProtocol[EntityType] {
   def deserialize[F[_] : Sync](array: Array[Byte]): F[EntityType]
 }
 
+object SerializationProtocol {
+  def apply[A](implicit instance: SerializationProtocol[A]): SerializationProtocol[A] = instance
+}
+
 object SerializationProtocolInstances {
   implicit val serializeBoolean: SerializationProtocol[Boolean] = new SerializationProtocol[Boolean] {
     override def serialize[F[_] : Sync](entity: Boolean): F[Array[Byte]] =
@@ -90,17 +94,16 @@ object SerializationProtocolInstances {
 object SerializationProtocolSyntax {
 
   implicit class SerializationProtocolOperations[A: SerializationProtocol, F[_] : Sync](entity: A) {
-    private val serializer: SerializationProtocol[A] = implicitly[SerializationProtocol[A]]
 
     def ->>(entity2: A): F[Array[Byte]] = combine(entity2)
 
     def ->>[B: SerializationProtocol](entity2: B): F[Array[Byte]] = combine(entity2)
 
     def combine(entity2: A): F[Array[Byte]] =
-      serializer.serialize(entity) >> serializer.serialize(entity2)
+      SerializationProtocol[A].serialize(entity) >> SerializationProtocol[A].serialize(entity2)
 
     def combine[B: SerializationProtocol](entity2: B): F[Array[Byte]] =
-      serializer.serialize(entity) >> implicitly[SerializationProtocol[B]].serialize(entity2)
+      SerializationProtocol[A].serialize(entity) >> SerializationProtocol[B].serialize(entity2)
   }
 
   def decode[A: SerializationProtocol, F[_] : Sync](array: Array[Byte]): F[A] =
