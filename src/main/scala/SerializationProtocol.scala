@@ -90,25 +90,3 @@ object SerializationProtocolInstances {
     override def deserialize[F[_] : Sync](array: Array[Byte]): F[Array[Byte]] = Sync[F].delay(array)
   }
 }
-
-object SerializationProtocolSyntax {
-
-  implicit class SerializationProtocolOperations[A: SerializationProtocol, F[_] : Sync](entity: A) {
-
-    def ->>(entity2: A): F[Array[Byte]] = combine(entity2)
-
-    def ->>[B: SerializationProtocol](entity2: B): F[Array[Byte]] = combine(entity2)
-
-    def combine(entity2: A): F[Array[Byte]] =
-      SerializationProtocol[A].serialize(entity) >> SerializationProtocol[A].serialize(entity2)
-
-    def combine[B: SerializationProtocol](entity2: B): F[Array[Byte]] =
-      SerializationProtocol[A].serialize(entity) >> SerializationProtocol[B].serialize(entity2)
-  }
-
-  def decode[A: SerializationProtocol, F[_] : Sync](array: Array[Byte]): F[A] =
-    implicitly[SerializationProtocol[A]].deserialize(array)
-
-  def encode[A: SerializationProtocol, F[_] : Sync](entity: A): F[Array[Byte]] =
-    implicitly[SerializationProtocol[A]].serialize(entity)
-}
