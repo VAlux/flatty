@@ -37,27 +37,32 @@ object SerializationProtocolInstances {
       payload <- Sync[F].delay(cleanBuffer.putShort(entity).array())
     } yield payload
 
-    override def deserialize[F[_] : Sync](array: Array[Byte]): F[Short] =
-      Sync[F].delay {
-        buffer.put(array)
-        buffer.flip()
-        buffer.getShort()
+    override def deserialize[F[_] : Sync](array: Array[Byte]): F[Short] = for {
+      cleanBuffer <- Sync[F].delay(buffer.clear())
+      result <- Sync[F].delay {
+        cleanBuffer.put(array)
+        cleanBuffer.flip()
+        cleanBuffer.getShort()
       }
+    } yield result
   }
   implicit val serializeInt: SerializationProtocol[Int] = new SerializationProtocol[Int] {
-    private val buffer: ByteBuffer = ByteBuffer.allocate(Integer.BYTES)
+    private val buffer: ByteBuffer = ByteBuffer.allocate(java.lang.Integer.BYTES)
 
     override def serialize[F[_] : Sync](entity: Int): F[Array[Byte]] = for {
       cleanBuffer <- Sync[F].delay(buffer.clear())
       payload <- Sync[F].delay(cleanBuffer.putInt(entity).array())
+      _ <- Sync[F].delay(s"serialized int to payload: [${payload mkString " "}]")
     } yield payload
 
-    override def deserialize[F[_] : Sync](array: Array[Byte]): F[Int] =
-      Sync[F].delay {
-        buffer.put(array)
-        buffer.flip()
-        buffer.getInt
+    override def deserialize[F[_] : Sync](array: Array[Byte]): F[Int] = for {
+      cleanBuffer <- Sync[F].delay(buffer.clear())
+      result <- Sync[F].delay {
+        cleanBuffer.put(array)
+        cleanBuffer.flip()
+        cleanBuffer.getInt
       }
+    } yield result
   }
 
   implicit val serializeLong: SerializationProtocol[Long] = new SerializationProtocol[Long] {
@@ -66,14 +71,17 @@ object SerializationProtocolInstances {
     override def serialize[F[_] : Sync](entity: Long): F[Array[Byte]] = for {
       cleanBuffer <- Sync[F].delay(buffer.clear())
       payload <- Sync[F].delay(cleanBuffer.putLong(entity).array())
+      _ <- Sync[F].delay(s"serialized long to payload: [${payload mkString " "}]")
     } yield payload
 
-    override def deserialize[F[_] : Sync](array: Array[Byte]): F[Long] =
-      Sync[F].delay {
-        buffer.put(array)
-        buffer.flip()
-        buffer.getLong()
+    override def deserialize[F[_] : Sync](array: Array[Byte]): F[Long] = for {
+      cleanBuffer <- Sync[F].delay(buffer.clear())
+      result <- Sync[F].delay {
+        cleanBuffer.put(array)
+        cleanBuffer.flip()
+        cleanBuffer.getLong()
       }
+    } yield result
   }
 
   implicit val serializeString: SerializationProtocol[String] = new SerializationProtocol[String] {

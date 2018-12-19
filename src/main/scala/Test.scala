@@ -41,20 +41,20 @@ object Test extends IOApp {
     } yield amount
 
   private def writeToFile = for {
-    entity <- IO(9)
+    entity <- IO(java.lang.Long.MIN_VALUE)
+    _ <- IO(println(s"serializing entity: [$entity]"))
     file <- IO(new File("test.dat"))
-    written <- outToFile[Int, IO](entity, file)
+    written <- outToFile[Long, IO](entity, file)
     _ <- IO(println(s"$written bytes written to test.dat"))
   } yield ExitCode.Success
 
   private def readFromFile = for {
     file <- IO(new File("test.dat"))
-    entity <- fromFile[Int, IO](file)
+    entity <- fromFile[Long, IO](file)
     _ <- IO(println(s"Payload: [$entity] loaded from the test.dat"))
   } yield ExitCode.Success
 
   override def run(args: List[String]): IO[ExitCode] = {
-    writeToFile
-    readFromFile
+    writeToFile *> readFromFile
   }
 }

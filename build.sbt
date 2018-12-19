@@ -4,9 +4,17 @@ version := "0.1"
 
 scalaVersion := "2.12.8"
 
-libraryDependencies += "org.typelevel" %% "cats-effect" % "1.0.0" withSources() withJavadoc()
-libraryDependencies += "org.scalactic" %% "scalactic" % "3.0.5"
-libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.5" % "test"
+resolvers ++= Seq(
+  Resolver.sonatypeRepo("releases"),
+  Resolver.sonatypeRepo("snapshots")
+)
+
+libraryDependencies ++= Seq(
+  "org.typelevel" %% "cats-effect" % "1.0.0" withSources() withJavadoc(),
+  "org.scalactic" %% "scalactic" % "3.0.5",
+  "org.scalatest" %% "scalatest" % "3.0.5" % "test",
+  "com.chuusai" %% "shapeless" % "2.3.3"
+)
 
 scalacOptions ++= Seq(
   "-target:jvm-1.8",

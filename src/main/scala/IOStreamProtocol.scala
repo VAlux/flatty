@@ -12,6 +12,7 @@ class IOStreamProtocol[I <: InputStream, O <: OutputStream] extends IOProtocol[I
     length <- SerializationProtocol[Int].serialize(payload.length)
     _ <- Sync[F].delay(destination.write(length))
     _ <- Sync[F].delay(destination.write(payload))
+    _ <- Sync[F].delay(println(s"outputting payload of: [${payload mkString " "}]"))
   } yield payload.length + Integer.BYTES
 
   private def transmitFrom[F[_] : Sync](source: InputStream): F[Array[Byte]] = for {
@@ -32,6 +33,8 @@ class IOStreamProtocol[I <: InputStream, O <: OutputStream] extends IOProtocol[I
   } yield total
 }
 
+
+//TODO: think about how this can be generated automatically... maybe shapeless/magnolia/macros/etc?
 object IOStreamProtocolInstances {
   implicit val fileIOStreamProtocol: IOProtocol[FileInputStream, FileOutputStream] =
     new IOStreamProtocol[FileInputStream, FileOutputStream]
