@@ -43,15 +43,15 @@ object Test extends IOApp {
     } yield amount
 
   private def writeToFile = for {
-    entity <- IO(878788)
+    entity <- IO(java.lang.Float.MIN_VALUE)
     file <- IO(new File("test.dat"))
-    written <- outToFile[Int, IO](entity, file)
+    written <- outToFile[Float, IO](entity, file)
     _ <- IO(println(s"$written bytes written to test.dat"))
   } yield ExitCode.Success
 
   private def readFromFile = for {
     file <- IO(new File("test.dat"))
-    entity <- fromFile[Int, IO](file)
+    entity <- fromFile[Float, IO](file)
     _ <- IO(println(s"Payload: [$entity] loaded from the test.dat"))
   } yield ExitCode.Success
 

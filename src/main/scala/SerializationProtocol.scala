@@ -22,6 +22,7 @@ object SerializationProtocolInstances {
     override def deserialize[F[_] : Sync](array: Array[Byte]): F[Boolean] =
       Sync[F].delay(array.headOption.getOrElse(0) == 1)
   }
+
   implicit val serializeByte: SerializationProtocol[Byte] = new SerializationProtocol[Byte] {
     override def serialize[F[_] : Sync](entity: Byte): F[Array[Byte]] =
       Sync[F].delay(Array(entity))
@@ -29,6 +30,7 @@ object SerializationProtocolInstances {
     override def deserialize[F[_] : Sync](array: Array[Byte]): F[Byte] =
       Sync[F].delay(array.headOption.getOrElse(0))
   }
+
   implicit val serializeShort: SerializationProtocol[Short] = new SerializationProtocol[Short] {
     private val buffer: ByteBuffer = ByteBuffer.allocate(java.lang.Short.BYTES)
 
@@ -46,6 +48,7 @@ object SerializationProtocolInstances {
       }
     } yield result
   }
+
   implicit val serializeInt: SerializationProtocol[Int] = new SerializationProtocol[Int] {
     private val buffer: ByteBuffer = ByteBuffer.allocate(java.lang.Integer.BYTES)
 
@@ -77,7 +80,43 @@ object SerializationProtocolInstances {
       result <- Sync[F].delay {
         cleanBuffer.put(array)
         cleanBuffer.flip()
-        cleanBuffer.getLong()
+        cleanBuffer.getLong
+      }
+    } yield result
+  }
+
+  implicit val serializeFloat: SerializationProtocol[Float] = new SerializationProtocol[Float] {
+    private val buffer: ByteBuffer = ByteBuffer.allocate(java.lang.Float.BYTES)
+
+    override def serialize[F[_] : Sync](entity: Float): F[Array[Byte]] = for {
+      cleanBuffer <- Sync[F].delay(buffer.clear())
+      payload <- Sync[F].delay(cleanBuffer.putFloat(entity).array().clone())
+    } yield payload
+
+    override def deserialize[F[_] : Sync](array: Array[Byte]): F[Float] = for {
+      cleanBuffer <- Sync[F].delay(buffer.clear())
+      result <- Sync[F].delay {
+        cleanBuffer.put(array)
+        cleanBuffer.flip()
+        cleanBuffer.getFloat
+      }
+    } yield result
+  }
+
+  implicit val serializeDouble: SerializationProtocol[Double] = new SerializationProtocol[Double] {
+    private val buffer: ByteBuffer = ByteBuffer.allocate(java.lang.Double.BYTES)
+
+    override def serialize[F[_] : Sync](entity: Double): F[Array[Byte]] = for {
+      cleanBuffer <- Sync[F].delay(buffer.clear())
+      payload <- Sync[F].delay(cleanBuffer.putDouble(entity).array().clone())
+    } yield payload
+
+    override def deserialize[F[_] : Sync](array: Array[Byte]): F[Double] = for {
+      cleanBuffer <- Sync[F].delay(buffer.clear())
+      result <- Sync[F].delay {
+        cleanBuffer.put(array)
+        cleanBuffer.flip()
+        cleanBuffer.getDouble
       }
     } yield result
   }

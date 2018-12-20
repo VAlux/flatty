@@ -70,4 +70,58 @@ class SerializationProtocolTestSuite extends FlattyBaseTestSuite {
     assertDeserializationIsCorrect(Array[Byte](0x7F.toByte, 0xFF.toByte, 0xFF.toByte, 0xFF.toByte), java.lang.Integer.MAX_VALUE)
     assertDeserializationIsCorrect(Array[Byte](0x80.toByte, 0x00.toByte, 0x00.toByte, 0x00.toByte), java.lang.Integer.MIN_VALUE)
   }
+
+  test("Can correctly serialize and deserialize Long") {
+    assertSerializationIsCorrect(1.toLong, Array[Byte](0, 0, 0, 0, 0, 0, 0, 1))
+    assertSerializationIsCorrect(0.toLong, Array[Byte](0, 0, 0, 0, 0, 0, 0, 0))
+    assertSerializationIsCorrect(-1.toLong, Array[Byte](-1, -1, -1, -1, -1, -1, -1, -1))
+    assertSerializationIsCorrect(java.lang.Long.MAX_VALUE, Array[Byte](0x7F.toByte, 0xFF.toByte, 0xFF.toByte, 0xFF.toByte, 0xFF.toByte, 0xFF.toByte, 0xFF.toByte, 0xFF.toByte))
+    assertSerializationIsCorrect(java.lang.Long.MIN_VALUE, Array[Byte](0x80.toByte, 0x00.toByte, 0x00.toByte, 0x00.toByte, 0x00.toByte, 0x00.toByte, 0x00.toByte, 0x00.toByte))
+
+    assertDeserializationIsCorrect(Array[Byte](0, 0, 0, 0, 0, 0, 0, 1), 1.toLong)
+    assertDeserializationIsCorrect(Array[Byte](0, 0, 0, 0, 0, 0, 0, 0), 0.toLong)
+    assertDeserializationIsCorrect(Array[Byte](-1, -1, -1, -1, -1, -1, -1, -1), -1.toLong)
+    assertDeserializationIsCorrect(Array[Byte](0x7F.toByte, 0xFF.toByte, 0xFF.toByte, 0xFF.toByte, 0xFF.toByte, 0xFF.toByte, 0xFF.toByte, 0xFF.toByte), java.lang.Long.MAX_VALUE)
+    assertDeserializationIsCorrect(Array[Byte](0x80.toByte, 0x00.toByte, 0x00.toByte, 0x00.toByte, 0x00.toByte, 0x00.toByte, 0x00.toByte, 0x00.toByte), java.lang.Long.MIN_VALUE)
+  }
+
+  test("Can correctly serialize and deserialize Float") {
+    assertSerializationIsCorrect(1.0F, Array[Byte](63, -128, 0, 0))
+    assertSerializationIsCorrect(0.0F, Array[Byte](0, 0, 0, 0))
+    assertSerializationIsCorrect(-1.0F, Array[Byte](-65, -128, 0, 0))
+    assertSerializationIsCorrect(java.lang.Float.MIN_VALUE, Array[Byte](0, 0, 0, 1))
+    assertSerializationIsCorrect(java.lang.Float.MAX_VALUE, Array[Byte](0x7F.toByte, 0x7F.toByte, 0xFF.toByte, 0xFF.toByte))
+    assertSerializationIsCorrect(Float.MinValue, Array[Byte](0xFF.toByte, 0x7F.toByte, 0xFF.toByte, 0xFF.toByte))
+
+    assertDeserializationIsCorrect(Array[Byte](63, -128, 0, 0), 1.0F)
+    assertDeserializationIsCorrect(Array[Byte](0, 0, 0, 0), 0.0F)
+    assertDeserializationIsCorrect(Array[Byte](-65, -128, 0, 0), -1.0F)
+    assertDeserializationIsCorrect(Array[Byte](0, 0, 0, 1), java.lang.Float.MIN_VALUE)
+    assertDeserializationIsCorrect(Array[Byte](0x7F.toByte, 0x7F.toByte, 0xFF.toByte, 0xFF.toByte), java.lang.Float.MAX_VALUE)
+    assertDeserializationIsCorrect(Array[Byte](0xFF.toByte, 0x7F.toByte, 0xFF.toByte, 0xFF.toByte), Float.MinValue)
+  }
+
+  test("Can correctly serialize and deserialize Double") {
+    assertSerializationIsCorrect(1.0D, Array[Byte](63, -16, 0, 0, 0, 0, 0, 0))
+    assertSerializationIsCorrect(0.0D, Array[Byte](0, 0, 0, 0, 0, 0, 0, 0))
+    assertSerializationIsCorrect(-1.0D, Array[Byte](-65, -16, 0, 0, 0, 0, 0, 0))
+    assertSerializationIsCorrect(java.lang.Double.MIN_VALUE, Array[Byte](0, 0, 0, 0, 0, 0, 0, 1))
+    assertSerializationIsCorrect(java.lang.Double.MAX_VALUE, Array[Byte](127, -17, -1, -1, -1, -1, -1, -1))
+    assertSerializationIsCorrect(Double.MinValue, Array[Byte](-1, -17, -1, -1, -1, -1, -1, -1))
+
+    assertDeserializationIsCorrect(Array[Byte](63, -16, 0, 0, 0, 0, 0, 0), 1.0D)
+    assertDeserializationIsCorrect(Array[Byte](0, 0, 0, 0, 0, 0, 0, 0), 0.0D)
+    assertDeserializationIsCorrect(Array[Byte](-65, -16, 0, 0, 0, 0, 0, 0), -1.0D)
+    assertDeserializationIsCorrect(Array[Byte](0, 0, 0, 0, 0, 0, 0, 1), java.lang.Double.MIN_VALUE)
+    assertDeserializationIsCorrect(Array[Byte](127, -17, -1, -1, -1, -1, -1, -1), java.lang.Double.MAX_VALUE)
+    assertDeserializationIsCorrect(Array[Byte](-1, -17, -1, -1, -1, -1, -1, -1), Double.MinValue)
+  }
+
+  test("Can correctly serialize and deserialize String") {
+    assertSerializationIsCorrect("", "".getBytes)
+    assertSerializationIsCorrect("TEST", "TEST".getBytes)
+
+    assertDeserializationIsCorrect("".getBytes, "")
+    assertDeserializationIsCorrect("TEST".getBytes, "TEST")
+  }
 }
