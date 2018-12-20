@@ -3,6 +3,8 @@ import java.io.{File, FileInputStream, FileOutputStream}
 import cats.effect.{ExitCode, IOApp, Resource, Sync}
 import cats.effect.concurrent.Semaphore
 
+//TODO this will be deleted, once it is not needed
+// this is just an illustration, experimentation and testing of main concepts.
 object Test extends IOApp {
 
   import IOStreamProtocolInstances._
@@ -41,16 +43,15 @@ object Test extends IOApp {
     } yield amount
 
   private def writeToFile = for {
-    entity <- IO(java.lang.Long.MIN_VALUE)
-    _ <- IO(println(s"serializing entity: [$entity]"))
+    entity <- IO(878788)
     file <- IO(new File("test.dat"))
-    written <- outToFile[Long, IO](entity, file)
+    written <- outToFile[Int, IO](entity, file)
     _ <- IO(println(s"$written bytes written to test.dat"))
   } yield ExitCode.Success
 
   private def readFromFile = for {
     file <- IO(new File("test.dat"))
-    entity <- fromFile[Long, IO](file)
+    entity <- fromFile[Int, IO](file)
     _ <- IO(println(s"Payload: [$entity] loaded from the test.dat"))
   } yield ExitCode.Success
 

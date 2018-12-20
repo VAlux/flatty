@@ -1,18 +1,15 @@
 import java.io._
 
 import cats.effect.{Resource, Sync}
-import cats.syntax.flatMap._
-import cats.syntax.functor._
 
 class IOStreamProtocol[I <: InputStream, O <: OutputStream] extends IOProtocol[I, O] {
 
   import SerializationProtocolInstances._
+  import cats.implicits._
 
   private def transmitTo[F[_] : Sync](payload: Array[Byte], destination: OutputStream): F[Long] = for {
-    length <- SerializationProtocol[Int].serialize(payload.length)
-    _ <- Sync[F].delay(destination.write(length))
-    _ <- Sync[F].delay(destination.write(payload))
-    _ <- Sync[F].delay(println(s"outputting payload of: [${payload mkString " "}]"))
+    payloadLength <- SerializationProtocol[Int].serialize(4)
+    _ <- Sync[F].delay(destination.write(payloadLength)) *> Sync[F].delay(destination.write(payload))
   } yield payload.length + Integer.BYTES
 
   private def transmitFrom[F[_] : Sync](source: InputStream): F[Array[Byte]] = for {
@@ -32,7 +29,6 @@ class IOStreamProtocol[I <: InputStream, O <: OutputStream] extends IOProtocol[I
     total <- resource.use(outputStream => transmitTo(payload, outputStream))
   } yield total
 }
-
 
 //TODO: think about how this can be generated automatically... maybe shapeless/magnolia/macros/etc?
 object IOStreamProtocolInstances {

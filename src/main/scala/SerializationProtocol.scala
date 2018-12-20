@@ -34,7 +34,7 @@ object SerializationProtocolInstances {
 
     override def serialize[F[_] : Sync](entity: Short): F[Array[Byte]] = for {
       cleanBuffer <- Sync[F].delay(buffer.clear())
-      payload <- Sync[F].delay(cleanBuffer.putShort(entity).array())
+      payload <- Sync[F].delay(cleanBuffer.putShort(entity).array().clone())
     } yield payload
 
     override def deserialize[F[_] : Sync](array: Array[Byte]): F[Short] = for {
@@ -51,8 +51,7 @@ object SerializationProtocolInstances {
 
     override def serialize[F[_] : Sync](entity: Int): F[Array[Byte]] = for {
       cleanBuffer <- Sync[F].delay(buffer.clear())
-      payload <- Sync[F].delay(cleanBuffer.putInt(entity).array())
-      _ <- Sync[F].delay(s"serialized int to payload: [${payload mkString " "}]")
+      payload <- Sync[F].delay(cleanBuffer.putInt(entity).array().clone())
     } yield payload
 
     override def deserialize[F[_] : Sync](array: Array[Byte]): F[Int] = for {
@@ -70,8 +69,7 @@ object SerializationProtocolInstances {
 
     override def serialize[F[_] : Sync](entity: Long): F[Array[Byte]] = for {
       cleanBuffer <- Sync[F].delay(buffer.clear())
-      payload <- Sync[F].delay(cleanBuffer.putLong(entity).array())
-      _ <- Sync[F].delay(s"serialized long to payload: [${payload mkString " "}]")
+      payload <- Sync[F].delay(cleanBuffer.putLong(entity).array().clone())
     } yield payload
 
     override def deserialize[F[_] : Sync](array: Array[Byte]): F[Long] = for {
@@ -95,6 +93,7 @@ object SerializationProtocolInstances {
     override def serialize[F[_] : Sync](entity: Array[Byte]): F[Array[Byte]] =
       Sync[F].delay(entity)
 
-    override def deserialize[F[_] : Sync](array: Array[Byte]): F[Array[Byte]] = Sync[F].delay(array)
+    override def deserialize[F[_] : Sync](array: Array[Byte]): F[Array[Byte]] =
+      Sync[F].delay(array)
   }
 }
