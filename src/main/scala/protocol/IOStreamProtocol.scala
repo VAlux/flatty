@@ -1,22 +1,25 @@
+package protocol
+
 import java.io._
 
 import cats.effect.{Resource, Sync}
 
-class IOStreamProtocol[I <: InputStream, O <: OutputStream] extends IOProtocol[I, O] {
+final class IOStreamProtocol[I <: InputStream, O <: OutputStream] extends IOProtocol[I, O] {
 
   import SerializationProtocolInstances._
   import cats.implicits._
 
   private def transmitTo[F[_] : Sync](payload: Array[Byte], destination: OutputStream): F[Long] = for {
-    payloadLength <- SerializationProtocol[Int].serialize(4)
-    _ <- Sync[F].delay(destination.write(payloadLength)) *> Sync[F].delay(destination.write(payload))
+    payloadLength <- SerializationProtocol[Int].serialize(payload.length)
+    _ <- Sync[F].delay(destination.write(payloadLength))
+    _ <- Sync[F].delay(destination.write(payload))
   } yield payload.length + Integer.BYTES
 
   private def transmitFrom[F[_] : Sync](source: InputStream): F[Array[Byte]] = for {
-    dataStream <- Sync[F].delay(new DataInputStream(source))
+    dataStream <- Sync[F].delay(new DataInputStream(source)) // TODO: think, how this can be done more efficiently, without wrapper data stream
     size <- Sync[F].delay(dataStream.readInt())
     entityBuffer <- Sync[F].delay(new Array[Byte](size))
-    _ <- Sync[F].delay(dataStream.read(entityBuffer, 0, size))
+    _ <- Sync[F].delay(dataStream.read(entityBuffer))
   } yield entityBuffer
 
   override def input[F[_] : Sync, A: SerializationProtocol](resource: Resource[F, I]): F[A] = for {

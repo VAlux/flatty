@@ -1,6 +1,6 @@
-import SerializationProtocolInstances._
 import cats.effect.IO
 import org.scalatest.Assertion
+import protocol.SerializationProtocol
 
 class SerializationProtocolTestSuite extends FlattyBaseTestSuite {
   def assertSerializationIsCorrect[A: SerializationProtocol](entity: A, expected: Array[Byte]): Assertion = {

@@ -1,16 +1,17 @@
 import java.io.{File, FileInputStream, FileOutputStream}
 
-import cats.effect.{ExitCode, IOApp, Resource, Sync}
 import cats.effect.concurrent.Semaphore
+import cats.effect.{ExitCode, IOApp, Resource, Sync}
+import protocol.{IOProtocol, SerializationProtocol}
 
 //TODO this will be deleted, once it is not needed
 // this is just an illustration, experimentation and testing of main concepts.
 object Test extends IOApp {
 
-  import IOStreamProtocolInstances._
-  import SerializationProtocolInstances._
   import cats.effect.{Concurrent, IO}
   import cats.implicits._
+  import protocol.IOStreamProtocolInstances._
+  import protocol.SerializationProtocolInstances._
 
   def inputStream[F[_] : Sync](f: File, guard: Semaphore[F]): Resource[F, FileInputStream] =
     Resource.make {
@@ -39,7 +40,7 @@ object Test extends IOApp {
   def outToFile[A: SerializationProtocol, F[_] : Concurrent](entity: A, file: File): F[Long] =
     for {
       guard <- Semaphore[F](1)
-      amount <- IOProtocol[FileInputStream, FileOutputStream].output(entity, outputStream(file, guard))
+      amount <- IOProtocol[FileInputStream, FileOutputStream].output[F, A](entity, outputStream(file, guard))
     } yield amount
 
   private def writeToFile = for {
@@ -56,6 +57,6 @@ object Test extends IOApp {
   } yield ExitCode.Success
 
   override def run(args: List[String]): IO[ExitCode] = {
-    writeToFile *> readFromFile
+    writeToFile >> readFromFile
   }
 }

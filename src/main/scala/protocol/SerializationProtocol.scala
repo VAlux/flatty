@@ -1,12 +1,14 @@
+package protocol
+
 import java.nio.ByteBuffer
 
 import cats.effect.Sync
 import cats.implicits._
 
-sealed trait SerializationProtocol[EntityType] {
-  def serialize[F[_] : Sync](entity: EntityType): F[Array[Byte]]
+sealed trait SerializationProtocol[A] {
+  def serialize[F[_] : Sync](entity: A): F[Array[Byte]]
 
-  def deserialize[F[_] : Sync](array: Array[Byte]): F[EntityType]
+  def deserialize[F[_] : Sync](array: Array[Byte]): F[A]
 }
 
 object SerializationProtocol {
@@ -128,7 +130,8 @@ object SerializationProtocolInstances {
     override def deserialize[F[_] : Sync](array: Array[Byte]): F[String] =
       Sync[F].delay(new String(array))
   }
-  implicit val byteArraySerializer: SerializationProtocol[Array[Byte]] = new SerializationProtocol[Array[Byte]] {
+
+  implicit val serializeByteArray: SerializationProtocol[Array[Byte]] = new SerializationProtocol[Array[Byte]] {
     override def serialize[F[_] : Sync](entity: Array[Byte]): F[Array[Byte]] =
       Sync[F].delay(entity)
 
