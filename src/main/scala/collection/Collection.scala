@@ -1,8 +1,11 @@
-package protocol
+package collection
 
 import cats.effect.Concurrent
 import cats.effect.concurrent.MVar
 import cats.syntax.flatMap._
+import protocol.SerializationProtocol
+
+final case class CollectionElement[K: SerializationProtocol, V: SerializationProtocol](key: K, value: V)
 
 class Collection[F[_] : Concurrent, K: SerializationProtocol, V: SerializationProtocol](val data: MVar[F, Map[K, V]]) {
   def get(key: K): F[V] =

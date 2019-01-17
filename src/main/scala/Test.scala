@@ -31,22 +31,22 @@ object Test extends IOApp {
       }
     }
 
-  def fromFile[A: SerializationProtocol, F[_] : Concurrent](file: File): F[A] =
+  def fromFile[A: SerializationProtocol, F[_] : Concurrent](file: File): F[Iterable[A]] =
     for {
       guard <- Semaphore[F](1)
-      entity <- IOProtocol[FileInputStream, FileOutputStream].input[F, A](inputStream(file, guard))
+      entity <- IOProtocol[FileInputStream, FileOutputStream, Iterable[A]].input(inputStream(file, guard))
     } yield entity
 
-  def outToFile[A: SerializationProtocol, F[_] : Concurrent](entity: A, file: File): F[Long] =
+  def outToFile[A: SerializationProtocol, F[_] : Concurrent](entity: Iterable[A], file: File): F[Long] =
     for {
       guard <- Semaphore[F](1)
-      amount <- IOProtocol[FileInputStream, FileOutputStream].output[F, A](entity, outputStream(file, guard))
+      amount <- IOProtocol[FileInputStream, FileOutputStream, Iterable[A]].output(entity, outputStream(file, guard))
     } yield amount
 
   private def writeToFile = for {
     entity <- IO(java.lang.Float.MIN_VALUE)
     file <- IO(new File("test.dat"))
-    written <- outToFile[Float, IO](entity, file)
+    written <- outToFile[Float, IO](List(entity), file)
     _ <- IO(println(s"$written bytes written to test.dat"))
   } yield ExitCode.Success
 

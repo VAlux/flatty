@@ -138,4 +138,30 @@ object SerializationProtocolInstances {
     override def deserialize[F[_] : Sync](array: Array[Byte]): F[Array[Byte]] =
       Sync[F].delay(array)
   }
+
+  implicit def serializeIterable[A: SerializationProtocol]: SerializationProtocol[Iterable[A]] =
+    new SerializationProtocol[Iterable[A]] {
+
+      override def serialize[F[_] : Sync](data: Iterable[A]): F[Array[Byte]] =
+        data.map(entity => SerializationProtocol[A] serialize entity)
+          .foldLeft(Sync[F].pure(Array.empty[Byte])) {
+            (currentF, arrayF) =>
+              for {
+                current <- currentF
+                array <- arrayF
+              } yield current ++ array
+          }
+
+      override def deserialize[F[_] : Sync](data: Array[Byte]): F[Iterable[A]] = {
+        def deserializeEntitiesSequence(payload: Array[Byte], entities: List[A] = List.empty[A]): F[Iterable[A]] = for {
+          size <- SerializationProtocol[Int].deserialize(payload.take(Integer.BYTES))
+          total = size + Integer.BYTES
+          entity <- SerializationProtocol[A].deserialize(payload.slice(Integer.BYTES, size))
+          _ <- if (payload.length > total) deserializeEntitiesSequence(payload.drop(total), entities :+ entity)
+               else Sync[F].pure(entities)
+        } yield entities
+
+        deserializeEntitiesSequence(data)
+      }
+    }
 }
