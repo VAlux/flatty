@@ -161,7 +161,7 @@ object SerializationProtocolInstances {
           total = size + Integer.BYTES
           entity <- SerializationProtocol[A].deserialize(payload.slice(Integer.BYTES, total))
           result <- if (payload.length > total) deserializeEntitiesSequence(payload.drop(total), entities :+ entity)
-                    else Sync[F].pure(entities)
+                    else Sync[F].pure(entities :+ entity)
         } yield result
 
         deserializeEntitiesSequence(data)

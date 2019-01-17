@@ -37,7 +37,7 @@ object Test extends IOApp {
       entity <- IOProtocol[FileInputStream, FileOutputStream, Iterable[A]].input(inputStream(file, guard))
     } yield entity
 
-  def outToFile[A: SerializationProtocol, F[_] : Concurrent](entity: Iterable[A], file: File): F[Long] =
+  def toFile[A: SerializationProtocol, F[_] : Concurrent](entity: Iterable[A], file: File): F[Long] =
     for {
       guard <- Semaphore[F](1)
       amount <- IOProtocol[FileInputStream, FileOutputStream, Iterable[A]].output(entity, outputStream(file, guard))
@@ -45,17 +45,17 @@ object Test extends IOApp {
 
   val file = new File("test.dat")
 
-  private def writeToFile = for {
+  private def writeToFile: IO[ExitCode] = for {
     entity <- IO(List(10f, 20f, 30f, 40f))
     file <- IO(file)
-    written <- outToFile[Float, IO](entity, file)
+    written <- toFile[Float, IO](entity, file)
     _ <- IO(println(s"$written bytes written to test.dat"))
   } yield ExitCode.Success
 
-  private def readFromFile = for {
+  private def readFromFile: IO[ExitCode] = for {
     file <- IO(file)
-    entity <- fromFile[Float, IO](file)
-    _ <- IO(println(s"Payload: [$entity] loaded from the test.dat"))
+    entities <- fromFile[Float, IO](file)
+    _ <- IO(println(s"Payload: [$entities] loaded from the test.dat"))
   } yield ExitCode.Success
 
   override def run(args: List[String]): IO[ExitCode] = {
