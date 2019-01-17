@@ -12,19 +12,19 @@ final class IOStreamProtocol[I <: InputStream, O <: OutputStream, A: Serializati
   import cats.syntax.functor._
 
   private def transmitTo[F[_] : Sync](payload: Array[Byte], destination: O): F[Long] = for {
-    payloadLength <- SerializationProtocol[Int].serialize(payload.length)
-    _ <- Sync[F].delay(destination.write(payloadLength))
     _ <- Sync[F].delay(destination.write(payload))
-  } yield payload.length + Integer.BYTES
+  } yield payload.length
 
   private def transmitFrom[F[_] : Sync](source: I): F[Array[Byte]] = {
+    val sizeBuffer = new Array[Byte](Integer.BYTES)
+
     def read(inputStream: InputStream, payloads: Array[Byte] = Array.empty): F[Array[Byte]] = for {
-      dataStream <- Sync[F].delay(new DataInputStream(inputStream)) // TODO: think, how this can be done more efficiently, without wrapper data stream
-      entitySize <- Sync[F].delay(dataStream.readInt())
-      entityBuffer <- Sync[F].delay(new Array[Byte](entitySize))
-      size <- Sync[F].delay(dataStream.read(entityBuffer))
-      _ <- if (size > -1) read(inputStream, payloads ++ entityBuffer)
-      else Sync[F].pure(payloads)
+      entitySizeBytesAmount <- Sync[F].delay(inputStream.read(sizeBuffer))
+      entitySize <- if (entitySizeBytesAmount > -1) SerializationProtocol[Int].deserialize(sizeBuffer) else Sync[F].delay(-1)
+      entityBuffer <- if (entitySize > -1) Sync[F].delay(new Array[Byte](entitySize)) else Sync[F].delay(Array.empty[Byte])
+      size <- if (entityBuffer.length > 0) Sync[F].delay(inputStream.read(entityBuffer)) else Sync[F].delay(-1)
+      _ <- if (size > -1) read(inputStream, payloads ++ sizeBuffer ++ entityBuffer)
+           else Sync[F].pure(payloads)
     } yield payloads
 
     read(source)
@@ -41,11 +41,8 @@ final class IOStreamProtocol[I <: InputStream, O <: OutputStream, A: Serializati
   } yield total
 }
 
-//TODO: think about how this can be generated automatically... maybe shapeless/magnolia/macros/etc?
 object IOStreamProtocolInstances {
-  implicit def fileIOStreamProtocol[A: SerializationProtocol]: IOProtocol[FileInputStream, FileOutputStream, Iterable[A]] =
-    new IOStreamProtocol[FileInputStream, FileOutputStream, A]
-
-  implicit def byteArrayIOStreamProtocol[A: SerializationProtocol]: IOProtocol[ByteArrayInputStream, ByteArrayOutputStream, Iterable[A]] =
-    new IOStreamProtocol[ByteArrayInputStream, ByteArrayOutputStream, A]
+  // For any input/output stream we need only one generic implicit instance
+  implicit def ioStream[I <: InputStream, O <: OutputStream, A: SerializationProtocol]: IOProtocol[I, O, Iterable[A]] =
+    new IOStreamProtocol[I, O, A]
 }

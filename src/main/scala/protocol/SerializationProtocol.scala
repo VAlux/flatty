@@ -149,7 +149,8 @@ object SerializationProtocolInstances {
               for {
                 current <- currentF
                 array <- arrayF
-              } yield current ++ array
+                size <- SerializationProtocol[Int].serialize(array.length)
+              } yield current ++ size ++ array
           }
 
       override def deserialize[F[_] : Sync](data: Array[Byte]): F[Iterable[A]] = {
