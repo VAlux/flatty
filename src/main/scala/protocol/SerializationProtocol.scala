@@ -139,6 +139,8 @@ object SerializationProtocolInstances {
       Sync[F].delay(array)
   }
 
+  // TODO: probably this should be another protocol or a serialization protocol extension but not a part of it because
+  // it has distinct serialization semantics.
   implicit def serializeIterable[A: SerializationProtocol]: SerializationProtocol[Iterable[A]] =
     new SerializationProtocol[Iterable[A]] {
 
@@ -157,10 +159,10 @@ object SerializationProtocolInstances {
         def deserializeEntitiesSequence(payload: Array[Byte], entities: List[A] = List.empty[A]): F[Iterable[A]] = for {
           size <- SerializationProtocol[Int].deserialize(payload.take(Integer.BYTES))
           total = size + Integer.BYTES
-          entity <- SerializationProtocol[A].deserialize(payload.slice(Integer.BYTES, size))
-          _ <- if (payload.length > total) deserializeEntitiesSequence(payload.drop(total), entities :+ entity)
-               else Sync[F].pure(entities)
-        } yield entities
+          entity <- SerializationProtocol[A].deserialize(payload.slice(Integer.BYTES, total))
+          result <- if (payload.length > total) deserializeEntitiesSequence(payload.drop(total), entities :+ entity)
+                    else Sync[F].pure(entities)
+        } yield result
 
         deserializeEntitiesSequence(data)
       }

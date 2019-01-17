@@ -23,9 +23,9 @@ final class IOStreamProtocol[I <: InputStream, O <: OutputStream, A: Serializati
       entitySize <- if (entitySizeBytesAmount > -1) SerializationProtocol[Int].deserialize(sizeBuffer) else Sync[F].delay(-1)
       entityBuffer <- if (entitySize > -1) Sync[F].delay(new Array[Byte](entitySize)) else Sync[F].delay(Array.empty[Byte])
       size <- if (entityBuffer.length > 0) Sync[F].delay(inputStream.read(entityBuffer)) else Sync[F].delay(-1)
-      _ <- if (size > -1) read(inputStream, payloads ++ sizeBuffer ++ entityBuffer)
-           else Sync[F].pure(payloads)
-    } yield payloads
+      result <- if (size > -1) read(inputStream, payloads ++ sizeBuffer ++ entityBuffer)
+                else Sync[F].pure(payloads)
+    } yield result
 
     read(source)
   }

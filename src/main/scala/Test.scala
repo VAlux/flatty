@@ -43,17 +43,17 @@ object Test extends IOApp {
       amount <- IOProtocol[FileInputStream, FileOutputStream, Iterable[A]].output(entity, outputStream(file, guard))
     } yield amount
 
-  val filename = "test.dat"
+  val file = new File("test.dat")
 
   private def writeToFile = for {
-    entity <- IO(List(10f, 20f, 30f))
-    file <- IO(new File(filename))
+    entity <- IO(List(10f, 20f, 30f, 40f))
+    file <- IO(file)
     written <- outToFile[Float, IO](entity, file)
     _ <- IO(println(s"$written bytes written to test.dat"))
   } yield ExitCode.Success
 
   private def readFromFile = for {
-    file <- IO(new File(filename))
+    file <- IO(file)
     entity <- fromFile[Float, IO](file)
     _ <- IO(println(s"Payload: [$entity] loaded from the test.dat"))
   } yield ExitCode.Success
