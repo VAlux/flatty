@@ -31,31 +31,29 @@ object Test extends IOApp {
       }
     }
 
-  def fromFile[A: SerializationProtocol, F[_] : Concurrent](file: File): F[Iterable[A]] =
-    for {
-      guard <- Semaphore[F](1)
-      entity <- IOProtocol[FileInputStream, FileOutputStream, Iterable[A]].input(inputStream(file, guard))
-    } yield entity
+  def fromFile[A: SerializationProtocol, F[_] : Concurrent](file: File): F[Iterable[A]] = for {
+    guard <- Semaphore[F](1)
+    entity <- IOProtocol[FileInputStream, FileOutputStream, Iterable[A]].input(inputStream(file, guard))
+  } yield entity
 
-  def toFile[A: SerializationProtocol, F[_] : Concurrent](entity: Iterable[A], file: File): F[Long] =
-    for {
-      guard <- Semaphore[F](1)
-      amount <- IOProtocol[FileInputStream, FileOutputStream, Iterable[A]].output(entity, outputStream(file, guard))
-    } yield amount
+  def toFile[A: SerializationProtocol, F[_] : Concurrent](entity: Iterable[A], file: File): F[Long] = for {
+    guard <- Semaphore[F](1)
+    amount <- IOProtocol[FileInputStream, FileOutputStream, Iterable[A]].output(entity, outputStream(file, guard))
+  } yield amount
 
   val file = new File("test.dat")
 
   private def writeToFile: IO[ExitCode] = for {
-    entity <- IO(List(10f, 20f, 30f, 40f))
+    entity <- IO(1 to 9000)
     file <- IO(file)
-    written <- toFile[Float, IO](entity, file)
+    written <- toFile[Int, IO](entity, file)
     _ <- IO(println(s"$written bytes written to test.dat"))
   } yield ExitCode.Success
 
   private def readFromFile: IO[ExitCode] = for {
     file <- IO(file)
-    entities <- fromFile[Float, IO](file)
-    _ <- IO(println(s"Payload: [$entities] loaded from the test.dat"))
+    entities <- fromFile[Int, IO](file)
+    _ <- IO(println(s"Payload: [${entities.size}] entities loaded from the test.dat"))
   } yield ExitCode.Success
 
   override def run(args: List[String]): IO[ExitCode] = {

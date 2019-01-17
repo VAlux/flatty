@@ -4,6 +4,7 @@ import java.nio.ByteBuffer
 
 import cats.effect.Sync
 import cats.implicits._
+import collection.CollectionElement
 
 sealed trait SerializationProtocol[A] {
   def serialize[F[_] : Sync](entity: A): F[Array[Byte]]
@@ -138,6 +139,26 @@ object SerializationProtocolInstances {
     override def deserialize[F[_] : Sync](array: Array[Byte]): F[Array[Byte]] =
       Sync[F].delay(array)
   }
+
+  implicit def serializeCollectionElement[K: SerializationProtocol, V: SerializationProtocol]: SerializationProtocol[CollectionElement[K, V]] =
+    new SerializationProtocol[CollectionElement[K, V]] {
+
+      override def serialize[F[_] : Sync](entity: CollectionElement[K, V]): F[Array[Byte]] = for {
+        key <- SerializationProtocol[K].serialize(entity.key)
+        keySize <- SerializationProtocol[Int].serialize(key.length)
+        value <- SerializationProtocol[V].serialize(entity.value)
+        valueSize <- SerializationProtocol[Int].serialize(value.length)
+      } yield keySize ++ key ++ valueSize ++ value
+
+      override def deserialize[F[_] : Sync](array: Array[Byte]): F[CollectionElement[K, V]] = for {
+        keySize <- SerializationProtocol[Int].deserialize(array.take(Integer.BYTES))
+        keyTotal = Integer.BYTES + keySize
+        key <- SerializationProtocol[K].deserialize(array.slice(Integer.BYTES, keyTotal))
+        valueSize <- SerializationProtocol[Int].deserialize(array.slice(keyTotal, keyTotal + Integer.BYTES))
+        valueTotal = keyTotal + Integer.BYTES + valueSize
+        value <- SerializationProtocol[V].deserialize(array.slice(keyTotal + Integer.BYTES, valueTotal))
+      } yield CollectionElement(key, value)
+    }
 
   // TODO: probably this should be another protocol or a serialization protocol extension but not a part of it because
   // it has distinct serialization semantics.
