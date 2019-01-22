@@ -12,8 +12,7 @@ resolvers ++= Seq(
 libraryDependencies ++= Seq(
   "org.typelevel" %% "cats-effect" % "1.0.0" withSources() withJavadoc(),
   "org.scalactic" %% "scalactic" % "3.0.5",
-  "org.scalatest" %% "scalatest" % "3.0.5" % "test",
-  "com.chuusai" %% "shapeless" % "2.3.3"
+  "org.scalatest" %% "scalatest" % "3.0.5" % "test"
 )
 
 scalacOptions ++= Seq(

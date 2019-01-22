@@ -3,13 +3,13 @@ import java.io.{File, FileInputStream, FileOutputStream}
 import cats.effect.concurrent.Semaphore
 import cats.effect.{ExitCode, IOApp, Resource, Sync}
 import protocol.{IOProtocol, SerializationProtocol}
+import cats.effect.{Concurrent, IO}
+import cats.implicits._
 
 //TODO this will be deleted, once it is not needed
 // this is just an illustration, experimentation and testing of main concepts.
 object Test extends IOApp {
 
-  import cats.effect.{Concurrent, IO}
-  import cats.implicits._
   import protocol.IOStreamProtocolInstances._
   import protocol.SerializationProtocolInstances._
 
@@ -31,28 +31,31 @@ object Test extends IOApp {
       }
     }
 
+  def fileIO[A: SerializationProtocol]: IOProtocol[FileInputStream, FileOutputStream, Iterable[A]] =
+    IOProtocol[FileInputStream, FileOutputStream, Iterable[A]]
+
   def fromFile[A: SerializationProtocol, F[_] : Concurrent](file: File): F[Iterable[A]] = for {
     guard <- Semaphore[F](1)
-    entity <- IOProtocol[FileInputStream, FileOutputStream, Iterable[A]].input(inputStream(file, guard))
+    entity <- fileIO[A].input(inputStream(file, guard))
   } yield entity
 
   def toFile[A: SerializationProtocol, F[_] : Concurrent](entity: Iterable[A], file: File): F[Long] = for {
     guard <- Semaphore[F](1)
-    amount <- IOProtocol[FileInputStream, FileOutputStream, Iterable[A]].output(entity, outputStream(file, guard))
+    amount <- fileIO[A].output(entity, outputStream(file, guard))
   } yield amount
 
   val file = new File("test.dat")
 
   private def writeToFile: IO[ExitCode] = for {
-    entity <- IO(1 to 9000)
+    entity <- IO(1L to 9500L)
     file <- IO(file)
-    written <- toFile[Int, IO](entity, file)
+    written <- toFile[Long, IO](entity, file)
     _ <- IO(println(s"$written bytes written to test.dat"))
   } yield ExitCode.Success
 
   private def readFromFile: IO[ExitCode] = for {
     file <- IO(file)
-    entities <- fromFile[Int, IO](file)
+    entities <- fromFile[Long, IO](file)
     _ <- IO(println(s"Payload: [${entities.size}] entities loaded from the test.dat"))
   } yield ExitCode.Success
 
