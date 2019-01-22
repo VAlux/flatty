@@ -183,7 +183,7 @@ object SerializationProtocolInstances {
           total = size + Integer.BYTES
           chunk <- Sync[F].delay(payload.slice(Integer.BYTES, total))
           result <- if (payload.length > total) splitToChunks(payload.drop(total), chunks :+ chunk)
-                    else Sync[F].pure(chunks :+ chunk)
+          else Sync[F].pure(chunks :+ chunk)
         } yield result
 
         def deserializeChunks(chunkedData: F[Array[Array[Byte]]]): F[Iterable[A]] = {
@@ -196,4 +196,43 @@ object SerializationProtocolInstances {
         deserializeChunks(splitToChunks(data))
       }
     }
+
+  implicit def iterableSerializationProtocol[A: SerializationProtocol]: IterableSerializationProtocol[A] =
+    new IterableSerializationProtocol[A]
+}
+
+final class IterableSerializationProtocol[A: SerializationProtocol] extends SerializationProtocol[Iterable[A]] {
+
+  import SerializationProtocolInstances._
+
+  override def serialize[F[_] : Sync](data: Iterable[A]): F[Array[Byte]] =
+    data.map(entity => SerializationProtocol[A] serialize entity).par
+      .foldLeft(Sync[F].pure(Array.empty[Byte])) {
+        (currentF, arrayF) =>
+          for {
+            current <- currentF
+            array <- arrayF
+            size <- SerializationProtocol[Int].serialize(array.length)
+          } yield current ++ size ++ array
+      }
+
+  override def deserialize[F[_] : Sync](data: Array[Byte]): F[Iterable[A]] = {
+
+    def splitToChunks(payload: Array[Byte], chunks: Array[Array[Byte]] = Array.empty): F[Array[Array[Byte]]] = for {
+      size <- SerializationProtocol[Int].deserialize(payload.take(Integer.BYTES))
+      total = size + Integer.BYTES
+      chunk <- Sync[F].delay(payload.slice(Integer.BYTES, total))
+      result <- if (payload.length > total) splitToChunks(payload.drop(total), chunks :+ chunk)
+                else Sync[F].pure(chunks :+ chunk)
+    } yield result
+
+    def deserializeChunks(chunkedData: F[Array[Array[Byte]]]): F[Iterable[A]] = {
+      chunkedData.flatMap { chunks =>
+        chunks.foldLeft(Sync[F].pure(List.empty[A]))((currentF, chunk) =>
+          currentF.flatMap(current => SerializationProtocol[A].deserialize(chunk).map(entity => current :+ entity)))
+      }.flatMap(Sync[F].delay(_)) // TODO: figure out how to get rid of this crap
+    }
+
+    deserializeChunks(splitToChunks(data))
+  }
 }

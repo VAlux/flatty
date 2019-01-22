@@ -47,7 +47,7 @@ object Test extends IOApp {
   val file = new File("test.dat")
 
   private def writeToFile: IO[ExitCode] = for {
-    entity <- IO(1L to 9500L)
+    entity <- IO(1L to 100000L)
     file <- IO(file)
     written <- toFile[Long, IO](entity, file)
     _ <- IO(println(s"$written bytes written to test.dat"))
