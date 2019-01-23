@@ -6,6 +6,8 @@ import cats.effect.Sync
 import cats.implicits._
 import collection.CollectionElement
 
+import scala.collection.mutable.ArrayBuffer
+
 sealed trait SerializationProtocol[A] {
   def serialize[F[_] : Sync](entity: A): F[Array[Byte]]
 
@@ -218,12 +220,12 @@ final class IterableSerializationProtocol[A: SerializationProtocol] extends Seri
 
   override def deserialize[F[_] : Sync](data: Array[Byte]): F[Iterable[A]] = {
 
-    def splitToChunks(payload: Array[Byte], chunks: Array[Array[Byte]] = Array.empty): F[Array[Array[Byte]]] = for {
-      size <- SerializationProtocol[Int].deserialize(payload.take(Integer.BYTES))
+    def splitToChunks(payload: List[Byte], chunks: ArrayBuffer[Array[Byte]] = ArrayBuffer.empty): F[Array[Array[Byte]]] = for {
+      size <- SerializationProtocol[Int].deserialize(payload.take(Integer.BYTES).toArray)
       total = size + Integer.BYTES
-      chunk <- Sync[F].delay(payload.slice(Integer.BYTES, total))
-      result <- if (payload.length > total) splitToChunks(payload.drop(total), chunks :+ chunk)
-                else Sync[F].pure(chunks :+ chunk)
+      chunk <- Sync[F].delay(payload.slice(Integer.BYTES, total).toArray)
+      result <- if (payload.length > total) splitToChunks(payload.drop(total), chunks += chunk)
+                else Sync[F].pure((chunks += chunk).toArray)
     } yield result
 
     def deserializeChunks(chunkedData: F[Array[Array[Byte]]]): F[Iterable[A]] = {
@@ -233,6 +235,6 @@ final class IterableSerializationProtocol[A: SerializationProtocol] extends Seri
       }.flatMap(Sync[F].delay(_)) // TODO: figure out how to get rid of this crap
     }
 
-    deserializeChunks(splitToChunks(data))
+    deserializeChunks(splitToChunks(data.toList))
   }
 }

@@ -4,6 +4,8 @@ import java.io._
 
 import cats.effect.{Resource, Sync}
 
+import scala.collection.mutable.ArrayBuffer
+
 final class IOStreamProtocol[I <: InputStream, O <: OutputStream, A: SerializationProtocol]
   extends IOProtocol[I, O, Iterable[A]] {
 
@@ -19,17 +21,16 @@ final class IOStreamProtocol[I <: InputStream, O <: OutputStream, A: Serializati
 
   private def transmitFrom[F[_] : Sync](source: I): F[Array[Byte]] = {
 
-    def read(inputStream: InputStream, payloads: Array[Byte] = Array.empty): F[Array[Byte]] = for {
+    def read(inputStream: InputStream, payloads: ArrayBuffer[Byte] = ArrayBuffer.empty): F[ArrayBuffer[Byte]] = for {
       entitySizeBytesAmount <- Sync[F].delay(inputStream.read(sizeBuffer))
       entitySize <- if (entitySizeBytesAmount > -1) SerializationProtocol[Int].deserialize(sizeBuffer) else Sync[F].pure(-1)
       entityBuffer <- if (entitySize > -1) Sync[F].delay(new Array[Byte](entitySize)) else Sync[F].pure(Array.empty[Byte])
       size <- if (entityBuffer.length > 0) Sync[F].delay(inputStream.read(entityBuffer)) else Sync[F].pure(-1)
-      newPayloads <- Sync[F].delay(payloads ++ sizeBuffer ++ entityBuffer)
-      result <- if (size > -1) read(inputStream, newPayloads)
+      result <- if (size > -1) read(inputStream, payloads ++= (sizeBuffer ++ entityBuffer))
                 else Sync[F].pure(payloads)
     } yield result
 
-    read(source)
+    read(source).flatMap(data => Sync[F].pure(data.toArray))
   }
 
   override def input[F[_] : Sync](resource: Resource[F, I]): F[Iterable[A]] = for {
