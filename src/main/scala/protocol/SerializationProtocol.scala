@@ -4,7 +4,6 @@ import java.nio.ByteBuffer
 
 import cats.effect.Sync
 import cats.implicits._
-import collection.CollectionElement
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -142,61 +141,24 @@ object SerializationProtocolInstances {
       Sync[F].delay(array)
   }
 
-  implicit def serializeCollectionElement[K: SerializationProtocol, V: SerializationProtocol]: SerializationProtocol[CollectionElement[K, V]] =
-    new SerializationProtocol[CollectionElement[K, V]] {
+  implicit def tuple2SerializationProtocol[A: SerializationProtocol, B: SerializationProtocol]: SerializationProtocol[(A, B)] =
+    new SerializationProtocol[(A, B)] {
 
-      override def serialize[F[_] : Sync](entity: CollectionElement[K, V]): F[Array[Byte]] = for {
-        key <- SerializationProtocol[K].serialize(entity.key)
-        keySize <- SerializationProtocol[Int].serialize(key.length)
-        value <- SerializationProtocol[V].serialize(entity.value)
-        valueSize <- SerializationProtocol[Int].serialize(value.length)
-      } yield keySize ++ key ++ valueSize ++ value
+      override def serialize[F[_] : Sync](entity: (A, B)): F[Array[Byte]] = for {
+        first <- SerializationProtocol[A].serialize(entity._1)
+        firstSize <- SerializationProtocol[Int].serialize(first.length)
+        second <- SerializationProtocol[B].serialize(entity._2)
+        secondSize <- SerializationProtocol[Int].serialize(second.length)
+      } yield firstSize ++ first ++ secondSize ++ second
 
-      override def deserialize[F[_] : Sync](array: Array[Byte]): F[CollectionElement[K, V]] = for {
-        keySize <- SerializationProtocol[Int].deserialize(array.take(Integer.BYTES))
-        keyTotal = Integer.BYTES + keySize
-        key <- SerializationProtocol[K].deserialize(array.slice(Integer.BYTES, keyTotal))
-        valueSize <- SerializationProtocol[Int].deserialize(array.slice(keyTotal, keyTotal + Integer.BYTES))
-        valueTotal = keyTotal + Integer.BYTES + valueSize
-        value <- SerializationProtocol[V].deserialize(array.slice(keyTotal + Integer.BYTES, valueTotal))
-      } yield CollectionElement(key, value)
-    }
-
-  // TODO: probably this should be another protocol or a serialization protocol extension but not a part of it because
-  // it has distinct serialization semantics.
-  implicit def serializeIterable[A: SerializationProtocol]: SerializationProtocol[Iterable[A]] =
-    new SerializationProtocol[Iterable[A]] {
-
-      override def serialize[F[_] : Sync](data: Iterable[A]): F[Array[Byte]] =
-        data.map(entity => SerializationProtocol[A] serialize entity).par
-          .foldLeft(Sync[F].pure(Array.empty[Byte])) {
-            (currentF, arrayF) =>
-              for {
-                current <- currentF
-                array <- arrayF
-                size <- SerializationProtocol[Int].serialize(array.length)
-              } yield current ++ size ++ array
-          }
-
-      override def deserialize[F[_] : Sync](data: Array[Byte]): F[Iterable[A]] = {
-
-        def splitToChunks(payload: Array[Byte], chunks: Array[Array[Byte]] = Array.empty): F[Array[Array[Byte]]] = for {
-          size <- SerializationProtocol[Int].deserialize(payload.take(Integer.BYTES))
-          total = size + Integer.BYTES
-          chunk <- Sync[F].delay(payload.slice(Integer.BYTES, total))
-          result <- if (payload.length > total) splitToChunks(payload.drop(total), chunks :+ chunk)
-          else Sync[F].pure(chunks :+ chunk)
-        } yield result
-
-        def deserializeChunks(chunkedData: F[Array[Array[Byte]]]): F[Iterable[A]] = {
-          chunkedData.flatMap { chunks =>
-            chunks.foldLeft(Sync[F].pure(List.empty[A]))((currentF, chunk) =>
-              currentF.flatMap(current => SerializationProtocol[A].deserialize(chunk).map(entity => current :+ entity)))
-          }.flatMap(Sync[F].delay(_))
-        }
-
-        deserializeChunks(splitToChunks(data))
-      }
+      override def deserialize[F[_] : Sync](array: Array[Byte]): F[(A, B)] = for {
+        firstSize <- SerializationProtocol[Int].deserialize(array.take(Integer.BYTES))
+        fistTotal = Integer.BYTES + firstSize
+        first <- SerializationProtocol[A].deserialize(array.slice(Integer.BYTES, fistTotal))
+        secondSize <- SerializationProtocol[Int].deserialize(array.slice(fistTotal, fistTotal + Integer.BYTES))
+        secondTotal = fistTotal + Integer.BYTES + secondSize
+        second <- SerializationProtocol[B].deserialize(array.slice(fistTotal + Integer.BYTES, secondTotal))
+      } yield (first, second)
     }
 
   implicit def iterableSerializationProtocol[A: SerializationProtocol]: IterableSerializationProtocol[A] =
@@ -208,7 +170,7 @@ final class IterableSerializationProtocol[A: SerializationProtocol] extends Seri
   import SerializationProtocolInstances._
 
   override def serialize[F[_] : Sync](data: Iterable[A]): F[Array[Byte]] =
-    data.map(entity => SerializationProtocol[A] serialize entity).par
+    data.map(entity => SerializationProtocol[A] serialize entity)
       .foldLeft(Sync[F].pure(Array.empty[Byte])) {
         (currentF, arrayF) =>
           for {
@@ -225,7 +187,7 @@ final class IterableSerializationProtocol[A: SerializationProtocol] extends Seri
       total = size + Integer.BYTES
       chunk <- Sync[F].delay(payload.slice(Integer.BYTES, total).toArray)
       result <- if (payload.length > total) splitToChunks(payload.drop(total), chunks += chunk)
-                else Sync[F].pure((chunks += chunk).toArray)
+      else Sync[F].pure((chunks += chunk).toArray)
     } yield result
 
     def deserializeChunks(chunkedData: F[Array[Array[Byte]]]): F[Iterable[A]] = {

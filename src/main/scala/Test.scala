@@ -1,10 +1,10 @@
 import java.io.{File, FileInputStream, FileOutputStream}
 
+import cats.effect._
 import cats.effect.concurrent.Semaphore
-import cats.effect.{ExitCode, IOApp, Resource, Sync}
-import protocol.{IOProtocol, SerializationProtocol}
-import cats.effect.{Concurrent, IO}
 import cats.implicits._
+import collection.Collection
+import protocol.{IOProtocol, SerializationProtocol}
 
 //TODO this will be deleted, once it is not needed
 // this is just an illustration, experimentation and testing of main concepts.
@@ -46,20 +46,41 @@ object Test extends IOApp {
 
   val file = new File("test.dat")
 
+  private def writeCollectionToFile[K: SerializationProtocol, V: SerializationProtocol]
+  (collection: Collection[IO, K, V]): IO[ExitCode] = for {
+    data <- collection.data.take
+    written <- toFile[(K, V), IO](data, file)
+    _ <- IO(println(s"$written bytes written to test.dat"))
+  } yield ExitCode.Success
+
+  private def createTestCollection: IO[Collection[IO, Int, String]] = for {
+    collection <- Collection.empty[IO, Int, String]
+    result1 <- collection.put(1, "this")
+    result2 <- collection.put(2, "is")
+    result3 <- collection.put(3, "a")
+    result4 <- collection.put(4, "test")
+    result5 <- collection.put(5, "collection")
+    result6 <- collection.put(6, "from")
+    result7 <- collection.put(7, "alvo")
+  } yield collection
+
   private def writeToFile: IO[ExitCode] = for {
-    entity <- IO(1L to 100000L)
+    entity <- IO(List((1, "test"), (2, "alvo"), (3, "serialization")))
     file <- IO(file)
-    written <- toFile[Long, IO](entity, file)
+    written <- toFile[(Int, String), IO](entity, file)
     _ <- IO(println(s"$written bytes written to test.dat"))
   } yield ExitCode.Success
 
   private def readFromFile: IO[ExitCode] = for {
     file <- IO(file)
-    entities <- fromFile[Long, IO](file)
-    _ <- IO(println(s"Payload: [${entities.size}] entities loaded from the test.dat"))
+    entities <- fromFile[(Int, String), IO](file)
+    collection <- Collection[IO, Int, String](entities)
+    collectionContents <- collection.asString
+    _ <- IO(println(s"Payload: [$entities] entities loaded from the test.dat"))
+    _ <- IO(println(s"Collection created: [$collectionContents]"))
   } yield ExitCode.Success
 
   override def run(args: List[String]): IO[ExitCode] = {
-    writeToFile >> readFromFile
+    createTestCollection.flatMap(collection => writeCollectionToFile(collection)) >> readFromFile
   }
 }
