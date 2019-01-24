@@ -46,6 +46,16 @@ object Test extends IOApp {
 
   val file = new File("test.dat")
 
+  private def createComplexTestCollection: IO[Collection[IO, Int, (Int, String)]] = {
+    def create(collection: Collection[IO, Int, (Int, String)], count: Int = 0): IO[Collection[IO, Int, (Int, String)]] = for {
+      _ <- collection.put(count, (count, count + "value"))
+      result <- if (count < 100000) create(collection, count + 1)
+                else IO(collection)
+    } yield result
+
+    Collection.empty[IO, Int, (Int, String)].flatMap(coll => create(coll))
+  }
+
   private def writeCollectionToFile[K: SerializationProtocol, V: SerializationProtocol]
   (collection: Collection[IO, K, V]): IO[ExitCode] = for {
     data <- collection.data.take
@@ -53,34 +63,15 @@ object Test extends IOApp {
     _ <- IO(println(s"$written bytes written to test.dat"))
   } yield ExitCode.Success
 
-  private def createTestCollection: IO[Collection[IO, Int, String]] = for {
-    collection <- Collection.empty[IO, Int, String]
-    result1 <- collection.put(1, "this")
-    result2 <- collection.put(2, "is")
-    result3 <- collection.put(3, "a")
-    result4 <- collection.put(4, "test")
-    result5 <- collection.put(5, "collection")
-    result6 <- collection.put(6, "from")
-    result7 <- collection.put(7, "alvo")
-  } yield collection
-
-  private def writeToFile: IO[ExitCode] = for {
-    entity <- IO(List((1, "test"), (2, "alvo"), (3, "serialization")))
-    file <- IO(file)
-    written <- toFile[(Int, String), IO](entity, file)
-    _ <- IO(println(s"$written bytes written to test.dat"))
-  } yield ExitCode.Success
-
   private def readFromFile: IO[ExitCode] = for {
     file <- IO(file)
-    entities <- fromFile[(Int, String), IO](file)
-    collection <- Collection[IO, Int, String](entities)
+    entities <- fromFile[(Int, (Int, String)), IO](file)
+    collection <- Collection[IO, Int, (Int, String)](entities)
     collectionContents <- collection.asString
-    _ <- IO(println(s"Payload: [$entities] entities loaded from the test.dat"))
-    _ <- IO(println(s"Collection created: [$collectionContents]"))
+    _ <- IO(println(s"Payload of [${entities.size}] entities loaded from the ${file.getName}"))
   } yield ExitCode.Success
 
   override def run(args: List[String]): IO[ExitCode] = {
-    createTestCollection.flatMap(collection => writeCollectionToFile(collection)) >> readFromFile
+    createComplexTestCollection.flatMap(collection => writeCollectionToFile(collection)) >> readFromFile
   }
 }

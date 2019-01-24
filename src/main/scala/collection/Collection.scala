@@ -7,8 +7,8 @@ import cats.syntax.functor._
 import protocol.SerializationProtocol
 
 final case class Collection[F[_] : Concurrent, K: SerializationProtocol, V: SerializationProtocol](data: MVar[F, Map[K, V]]) {
-  def get(key: K): F[V] =
-    data.take.flatMap(elems => Concurrent[F].delay(elems(key)))
+  def get(key: K): F[Option[V]] =
+    data.take.flatMap(elems => Concurrent[F].delay(elems.get(key)))
 
   def put(key: K, value: V): F[Boolean] =
     data.take.flatMap(map => data.tryPut(map + (key -> value)))
